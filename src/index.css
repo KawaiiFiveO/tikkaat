@@ -1,0 +1,794 @@
+@import 'tailwindcss';
+
+/*
+ * Theme: a re-imagined early-2000s desktop. Aero-style glossy "gel" gradients, blended with
+ * classic KDE (Plasma 4 Air/Oxygen panels, fading separators, and Breeze-style accent
+ * focus and hover frames).
+ *
+ * Two independent settings on <html>:
+ *   data-theme="dark|light"                  (dark is the default, on bare :root)
+ *   data-color="lubuntu|mint|gentoo|warty"   (color theme; keep in sync with src/lib/theme.ts
+ *                                             and the inline script in index.html)
+ *
+ * Every color is derived in oklch from a color theme's hue (--hue) and neutral tint
+ * strength (--tint), so a color theme is only a few numbers and lightness stays consistent
+ * across hues. Status colors have their own hues, shifted where they'd clash with a theme.
+ *
+ * Components use the semantic color utilities (bg-surface, text-ink, …) and the component
+ * classes below. Never use raw palette classes or dark: variants. Gloss is plain gradients
+ * and inset highlights only (no images, no backdrop-filter), so painting stays cheap.
+ *
+ * Glossy surfaces use four stops: top, just above the midline, just below it, bottom.
+ */
+
+/*
+ * Color theme knobs (defaults on :root; [data-color] also works on any element, e.g. swatches):
+ *   --hue                theme hue (oklch degrees)
+ *   --tint               how strongly neutrals (page, panels, lines, text) are tinted with the hue
+ *   --lift               lightness added to accent surfaces (title bars, primary buttons, given tiles, logo)
+ *   --vivid              chroma multiplier for accent colors (below 1 = softer/pastel, above 1 = punchier)
+ *   --accent-ink         text on accent surfaces: white for deep accents, dark for pastel ones
+ *   --accent-ink-shadow  matching text shadow (drop shadow for white text, light emboss for dark text)
+ *   --success-hue / --hint-hue / --danger-hue   status hues, shifted where they'd clash with a theme
+ *
+ * Contrast: mid-lightness accents fail with both white and dark text. Use --lift ≤ 0.02 with
+ * white ink, or --lift ≥ 0.14 with dark ink.
+ */
+:root {
+  --hue: 255;
+  --tint: 1;
+  --lift: 0;
+  --vivid: 1;
+  --accent-ink: #ffffff;
+  --accent-ink-shadow: 0 1px 1px rgb(0 0 0 / 0.35);
+  --success-hue: 150;
+  --hint-hue: 80;
+  --danger-hue: 28;
+}
+
+/* Lubuntu: classic Lubuntu blue. */
+[data-color='lubuntu'] {
+  --hue: 255;
+  --tint: 1;
+  --lift: 0;
+  --vivid: 1;
+}
+
+/* Mint: soft pastel Linux Mint green with dark text. Solved tiles move to ocean teal-blue so they don't match. */
+[data-color='mint'] {
+  --hue: 165;
+  --tint: 0.75;
+  --lift: 0.16;
+  --vivid: 0.7;
+  --accent-ink: oklch(0.2 0.04 var(--hue));
+  --accent-ink-shadow: 0 1px 0 rgb(255 255 255 / 0.35);
+  --success-hue: 230;
+}
+
+/* Gentoo: light Gentoo lavender with dark text. */
+[data-color='gentoo'] {
+  --hue: 300;
+  --tint: 0.8;
+  --lift: 0.14;
+  --vivid: 0.75;
+  --accent-ink: oklch(0.2 0.04 var(--hue));
+  --accent-ink-shadow: 0 1px 0 rgb(255 255 255 / 0.35);
+}
+
+/* Ubuntu (Warty): 4.10 "Warty Warthog" Human orange over brown neutrals. Hints move to gold so they stand out. */
+[data-color='warty'] {
+  --hue: 52;
+  --tint: 0.75;
+  --lift: 0.02;
+  --vivid: 1.3;
+  --hint-hue: 100;
+}
+
+/* Dark mode (default). */
+:root {
+  color-scheme: dark;
+
+  --page: oklch(0.19 calc(0.04 * var(--tint)) var(--hue));
+  --page-glow: oklch(0.34 calc(0.08 * var(--tint)) var(--hue));
+  --page-bottom: oklch(0.14 calc(0.03 * var(--tint)) var(--hue));
+  --page-streak: oklch(0.8 0.08 var(--hue) / 0.07);
+
+  --surface: oklch(0.25 calc(0.045 * var(--tint)) var(--hue));
+  --surface-top: oklch(0.285 calc(0.05 * var(--tint)) var(--hue));
+  --surface-bottom: oklch(0.235 calc(0.042 * var(--tint)) var(--hue));
+  --surface-muted: oklch(0.215 calc(0.04 * var(--tint)) var(--hue));
+  --line: oklch(0.38 calc(0.06 * var(--tint)) var(--hue));
+  --line-strong: oklch(0.48 calc(0.08 * var(--tint)) var(--hue));
+  --ink: oklch(0.94 calc(0.012 * var(--tint)) var(--hue));
+  --ink-muted: oklch(0.77 calc(0.035 * var(--tint)) var(--hue));
+  --bar-ink: var(--accent-ink);
+  --header-ink: oklch(0.985 0.005 var(--hue));
+  --header-ink-shadow: 0 1px 1px rgb(0 0 0 / 0.35);
+
+  --accent: oklch(0.72 calc(0.12 * var(--vivid)) var(--hue));
+  --accent-hover: oklch(0.79 calc(0.1 * var(--vivid)) var(--hue));
+  --on-accent: var(--accent-ink);
+  --accent-soft: oklch(0.31 calc(0.06 * var(--vivid)) var(--hue));
+
+  --success: oklch(0.79 0.09 var(--success-hue));
+  --success-soft: oklch(0.3 0.045 var(--success-hue));
+  --danger: oklch(0.74 0.11 var(--danger-hue));
+  --danger-soft: oklch(0.29 0.05 var(--danger-hue));
+  --hint: oklch(0.81 0.11 var(--hint-hue));
+  --hint-soft: oklch(0.32 0.05 var(--hint-hue));
+
+  --gloss: rgb(255 255 255 / 0.1);
+  --gloss-strong: rgb(255 255 255 / 0.26);
+  --frame: rgb(255 255 255 / 0.05);
+  --shadow: rgb(0 0 0 / 0.45);
+  --focus-glow: oklch(calc(0.72 + var(--lift)) calc(0.12 * var(--vivid)) var(--hue) / 0.45);
+
+  --field: oklch(0.17 calc(0.035 * var(--tint)) var(--hue));
+  --field-border: oklch(0.45 calc(0.07 * var(--tint)) var(--hue));
+
+  --bar-1: oklch(calc(0.63 + var(--lift)) calc(0.11 * var(--vivid)) var(--hue));
+  --bar-2: oklch(calc(0.51 + var(--lift)) calc(0.11 * var(--vivid)) var(--hue));
+  --bar-3: oklch(calc(0.44 + var(--lift)) calc(0.1 * var(--vivid)) var(--hue));
+  --bar-4: oklch(calc(0.51 + var(--lift)) calc(0.1 * var(--vivid)) var(--hue));
+
+  --header-1: oklch(0.33 calc(0.05 * var(--tint)) var(--hue));
+  --header-2: oklch(0.22 calc(0.04 * var(--tint)) var(--hue));
+
+  --button-1: oklch(0.44 calc(0.05 * var(--tint)) var(--hue));
+  --button-2: oklch(0.37 calc(0.05 * var(--tint)) var(--hue));
+  --button-3: oklch(0.32 calc(0.045 * var(--tint)) var(--hue));
+  --button-4: oklch(0.37 calc(0.048 * var(--tint)) var(--hue));
+  --button-border: oklch(0.51 calc(0.07 * var(--tint)) var(--hue));
+
+  --primary-1: oklch(calc(0.74 + var(--lift)) calc(0.11 * var(--vivid)) var(--hue));
+  --primary-2: oklch(calc(0.6 + var(--lift)) calc(0.13 * var(--vivid)) var(--hue));
+  --primary-3: oklch(calc(0.53 + var(--lift)) calc(0.13 * var(--vivid)) var(--hue));
+  --primary-4: oklch(calc(0.61 + var(--lift)) calc(0.13 * var(--vivid)) var(--hue));
+  --primary-border: oklch(calc(0.42 + var(--lift)) calc(0.11 * var(--vivid)) var(--hue));
+  --icon-outline: oklch(0.3 0.08 var(--hue));
+
+  --tile-given-1: oklch(calc(0.7 + var(--lift)) calc(0.11 * var(--vivid)) var(--hue));
+  --tile-given-2: oklch(calc(0.57 + var(--lift)) calc(0.12 * var(--vivid)) var(--hue));
+  --tile-given-3: oklch(calc(0.51 + var(--lift)) calc(0.12 * var(--vivid)) var(--hue));
+  --tile-given-4: oklch(calc(0.59 + var(--lift)) calc(0.12 * var(--vivid)) var(--hue));
+
+  --tile-solved-1: oklch(0.68 0.09 var(--success-hue));
+  --tile-solved-2: oklch(0.55 0.09 var(--success-hue));
+  --tile-solved-3: oklch(0.5 0.085 var(--success-hue));
+  --tile-solved-4: oklch(0.57 0.09 var(--success-hue));
+
+  --tile-revealed-1: oklch(0.56 0.03 var(--hue));
+  --tile-revealed-2: oklch(0.46 0.03 var(--hue));
+  --tile-revealed-3: oklch(0.42 0.03 var(--hue));
+  --tile-revealed-4: oklch(0.48 0.03 var(--hue));
+}
+
+/* Light mode: overrides neutrals and bars; primary buttons and tiles are shared. */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --page: oklch(0.91 calc(0.03 * var(--tint)) var(--hue));
+  --page-glow: oklch(0.83 calc(0.06 * var(--tint)) var(--hue));
+  --page-bottom: oklch(0.96 calc(0.012 * var(--tint)) var(--hue));
+  --page-streak: oklch(1 0 0 / 0.45);
+
+  --surface: oklch(0.985 calc(0.005 * var(--tint)) var(--hue));
+  --surface-top: oklch(1 0 0);
+  --surface-bottom: oklch(0.955 calc(0.014 * var(--tint)) var(--hue));
+  --surface-muted: oklch(0.945 calc(0.018 * var(--tint)) var(--hue));
+  --line: oklch(0.81 calc(0.035 * var(--tint)) var(--hue));
+  --line-strong: oklch(0.68 calc(0.06 * var(--tint)) var(--hue));
+  --ink: oklch(0.25 calc(0.04 * var(--tint)) var(--hue));
+  --ink-muted: oklch(0.47 calc(0.05 * var(--tint)) var(--hue));
+  --bar-ink: var(--accent-ink);
+  --header-ink: var(--accent-ink);
+  --header-ink-shadow: var(--accent-ink-shadow);
+
+  --accent: oklch(0.5 calc(0.13 * var(--vivid)) var(--hue));
+  --accent-hover: oklch(0.43 calc(0.13 * var(--vivid)) var(--hue));
+  --accent-soft: oklch(0.92 calc(0.035 * var(--vivid)) var(--hue));
+
+  --success: oklch(0.5 0.1 var(--success-hue));
+  --success-soft: oklch(0.93 0.04 var(--success-hue));
+  --danger: oklch(0.5 0.16 var(--danger-hue));
+  --danger-soft: oklch(0.93 0.035 var(--danger-hue));
+  --hint: oklch(0.5 0.1 var(--hint-hue));
+  --hint-soft: oklch(0.95 0.06 var(--hint-hue));
+
+  --gloss: rgb(255 255 255 / 0.75);
+  --gloss-strong: rgb(255 255 255 / 0.9);
+  --frame: rgb(255 255 255 / 0.6);
+  --shadow: oklch(0.35 0.05 var(--hue) / 0.2);
+  --focus-glow: oklch(calc(0.5 + var(--lift)) calc(0.13 * var(--vivid)) var(--hue) / 0.35);
+
+  --field: #ffffff;
+  --field-border: oklch(0.74 calc(0.05 * var(--tint)) var(--hue));
+
+  --bar-1: oklch(calc(0.73 + var(--lift)) calc(0.1 * var(--vivid)) var(--hue));
+  --bar-2: oklch(calc(0.62 + var(--lift)) calc(0.12 * var(--vivid)) var(--hue));
+  --bar-3: oklch(calc(0.55 + var(--lift)) calc(0.12 * var(--vivid)) var(--hue));
+  --bar-4: oklch(calc(0.62 + var(--lift)) calc(0.12 * var(--vivid)) var(--hue));
+
+  --header-1: oklch(calc(0.64 + var(--lift)) calc(0.1 * var(--vivid)) var(--hue));
+  --header-2: oklch(calc(0.52 + var(--lift)) calc(0.11 * var(--vivid)) var(--hue));
+
+  --button-1: oklch(1 0 0);
+  --button-2: oklch(0.97 calc(0.006 * var(--tint)) var(--hue));
+  --button-3: oklch(0.915 calc(0.016 * var(--tint)) var(--hue));
+  --button-4: oklch(0.955 calc(0.01 * var(--tint)) var(--hue));
+  --button-border: oklch(0.74 calc(0.045 * var(--tint)) var(--hue));
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-on-accent: var(--on-accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-hint: var(--hint);
+  --color-hint-soft: var(--hint-soft);
+}
+
+@theme {
+  /* Clean, legible system fonts: nothing to download. */
+  --font-sans:
+    'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Ubuntu, Cantarell,
+    'Noto Sans', Arial, sans-serif;
+
+  --animate-shake: shake 0.35s ease-in-out;
+
+  @keyframes shake {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    20%,
+    60% {
+      transform: translateX(-6px);
+    }
+    40%,
+    80% {
+      transform: translateX(6px);
+    }
+  }
+}
+
+html {
+  scrollbar-color: var(--line-strong) var(--page-bottom);
+}
+
+body {
+  background-color: var(--page);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Page backdrop on a fixed layer, so scrolling never repaints it: a top glow, a corner
+   glow, and two soft diagonal light streaks in the style of the Plasma 4 "Air" wallpaper. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, transparent 30%, var(--page-streak) 44%, transparent 54%),
+    linear-gradient(115deg, transparent 50%, var(--page-streak) 58%, transparent 68%),
+    radial-gradient(120% 55% at 50% 0%, var(--page-glow) 0%, transparent 70%),
+    radial-gradient(60% 50% at 0% 100%, color-mix(in oklch, var(--page-glow) 60%, transparent) 0%, transparent 70%),
+    linear-gradient(to bottom, var(--page) 0%, var(--page-bottom) 100%);
+}
+
+@layer base {
+  /* Clicking or double-clicking controls and chrome never selects their text or the control itself. */
+  button,
+  summary,
+  .app-header,
+  .panel-titlebar,
+  .tile,
+  .tile-slot,
+  .choice {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklch, var(--accent) 40%, transparent);
+  }
+}
+
+@layer components {
+  /* App header: a smooth Plasma-style panel with an accent glow along its lower edge. */
+  .app-header {
+    color: var(--header-ink);
+    text-shadow: var(--header-ink-shadow);
+    background-image: linear-gradient(to bottom, var(--header-1), var(--header-2));
+    box-shadow:
+      inset 0 1px 0 var(--gloss-strong),
+      inset 0 -1px 0 color-mix(in oklch, var(--accent) 55%, transparent),
+      0 2px 12px var(--shadow);
+  }
+
+  /* App footer: a quiet bar matching the panels. */
+  .app-footer {
+    color: var(--ink-muted);
+    background-image: linear-gradient(to bottom, var(--surface-top), var(--surface-bottom));
+    border-top: 1px solid var(--line);
+    box-shadow: inset 0 1px 0 var(--gloss);
+  }
+
+  .app-footer a {
+    color: var(--accent);
+  }
+
+  .app-footer a:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
+  }
+
+  /* Windows: soft gradient body, Air-style inner frame, optional glossy title bar. */
+  .panel {
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 0.875rem;
+    background-color: var(--surface);
+    background-image: linear-gradient(to bottom, var(--surface-top), var(--surface-bottom));
+    box-shadow:
+      inset 0 1px 0 var(--gloss),
+      inset 0 0 0 1px var(--frame),
+      0 12px 30px -14px var(--shadow);
+  }
+
+  .panel-titlebar {
+    display: flex;
+    min-height: 2.5rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.375rem 0.625rem 0.375rem 1rem;
+    color: var(--bar-ink);
+    text-shadow: var(--accent-ink-shadow);
+    /* Oxygen-style soft highlight over the gel bar. */
+    background-image:
+      radial-gradient(55% 140% at 50% 0%, rgb(255 255 255 / 0.2), transparent 70%),
+      linear-gradient(to bottom, var(--bar-1) 0%, var(--bar-2) 49%, var(--bar-3) 51%, var(--bar-4) 100%);
+    border-bottom: 1px solid var(--line-strong);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3);
+  }
+
+  .panel-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  /* Oxygen-style separator that fades out at both ends. */
+  .rule {
+    height: 1px;
+    border: 0;
+    background-image: linear-gradient(
+      to right,
+      transparent,
+      var(--line-strong) 20%,
+      var(--line-strong) 80%,
+      transparent
+    );
+  }
+
+  /* Buttons: variants only swap the gradient variables. Hover gets a Breeze-style accent frame. */
+  .btn {
+    --b1: var(--button-1);
+    --b2: var(--button-2);
+    --b3: var(--button-3);
+    --b4: var(--button-4);
+    --b-border: var(--button-border);
+    --b-ink: var(--ink);
+    border: 1px solid var(--b-border);
+    border-radius: 0.5rem;
+    color: var(--b-ink);
+    background-image: linear-gradient(to bottom, var(--b1) 0%, var(--b2) 49%, var(--b3) 51%, var(--b4) 100%);
+    box-shadow:
+      inset 0 1px 0 var(--gloss),
+      0 1px 2px var(--shadow);
+    transition:
+      box-shadow 120ms ease,
+      border-color 120ms ease;
+  }
+
+  .btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    box-shadow:
+      inset 0 1px 0 var(--gloss-strong),
+      0 0 8px var(--focus-glow);
+  }
+
+  .btn:active:not(:disabled) {
+    background-image: linear-gradient(to bottom, var(--b3) 0%, var(--b2) 100%);
+    box-shadow: inset 0 2px 4px var(--shadow);
+  }
+
+  .btn-primary {
+    --b1: var(--primary-1);
+    --b2: var(--primary-2);
+    --b3: var(--primary-3);
+    --b4: var(--primary-4);
+    --b-border: var(--primary-border);
+    --b-ink: var(--on-accent);
+    text-shadow: var(--accent-ink-shadow);
+  }
+
+  /* Red gel for destructive confirmations. White text on the midline stops is ≥ 4.5:1. */
+  .btn-danger {
+    --b1: oklch(0.66 0.13 var(--danger-hue));
+    --b2: oklch(0.53 0.15 var(--danger-hue));
+    --b3: oklch(0.47 0.15 var(--danger-hue));
+    --b4: oklch(0.54 0.15 var(--danger-hue));
+    --b-border: oklch(0.36 0.12 var(--danger-hue));
+    --b-ink: #ffffff;
+    text-shadow: 0 1px 1px rgb(0 0 0 / 0.35);
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    border-color: var(--danger);
+    box-shadow:
+      inset 0 1px 0 var(--gloss-strong),
+      0 0 8px color-mix(in oklch, var(--danger) 45%, transparent);
+  }
+
+  .btn-ghost {
+    --b1: transparent;
+    --b2: transparent;
+    --b3: transparent;
+    --b4: transparent;
+    --b-border: transparent;
+    --b-ink: var(--ink-muted);
+    box-shadow: none;
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    --b1: var(--button-1);
+    --b2: var(--button-2);
+    --b3: var(--button-3);
+    --b4: var(--button-4);
+    --b-ink: var(--ink);
+  }
+
+  /* Translucent gel button for use on title bars and the header. */
+  .btn-bar {
+    --b1: rgb(255 255 255 / 0.24);
+    --b2: rgb(255 255 255 / 0.1);
+    --b3: rgb(255 255 255 / 0.02);
+    --b4: rgb(255 255 255 / 0.12);
+    --b-border: rgb(255 255 255 / 0.3);
+    /* Inherit text color and shadow from the header or title bar it sits on. */
+    --b-ink: currentColor;
+    text-shadow: inherit;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25);
+  }
+
+  .btn-bar:hover:not(:disabled) {
+    --b1: rgb(255 255 255 / 0.36);
+    --b2: rgb(255 255 255 / 0.18);
+    border-color: rgb(255 255 255 / 0.55);
+  }
+
+  /* Text inputs: recessed, with an accent glow on focus. */
+  .field {
+    border: 1px solid var(--field-border);
+    border-radius: 0.5rem;
+    background-color: var(--field);
+    color: var(--ink);
+    box-shadow: inset 0 2px 3px var(--shadow);
+    transition:
+      border-color 120ms ease,
+      box-shadow 120ms ease;
+  }
+
+  .field::placeholder {
+    color: var(--ink-muted);
+    opacity: 0.8;
+  }
+
+  .field:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow:
+      inset 0 2px 3px var(--shadow),
+      0 0 0 3px var(--focus-glow);
+  }
+
+  .field-given {
+    background-color: var(--accent-soft);
+  }
+
+  .field-active {
+    border-color: var(--accent);
+    box-shadow:
+      inset 0 2px 3px var(--shadow),
+      0 0 10px var(--focus-glow);
+  }
+
+  /* Recessed display box (e.g. the score). */
+  .inset-box {
+    border: 1px solid var(--field-border);
+    border-radius: 0.5rem;
+    background-color: var(--field);
+    box-shadow: inset 0 2px 4px var(--shadow);
+  }
+
+  /* Ladder tiles: glossy gel bars. */
+  .tile {
+    display: flex;
+    min-height: 3rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid rgb(0 0 0 / 0.35);
+    border-radius: 0.5rem;
+    color: #ffffff;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-align: center;
+    text-transform: uppercase;
+    text-shadow: 0 1px 1px rgb(0 0 0 / 0.4);
+    overflow-wrap: anywhere;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.35),
+      0 2px 4px var(--shadow);
+  }
+
+  .tile-given {
+    color: var(--accent-ink);
+    text-shadow: var(--accent-ink-shadow);
+    background-image: linear-gradient(
+      to bottom,
+      var(--tile-given-1) 0%,
+      var(--tile-given-2) 49%,
+      var(--tile-given-3) 51%,
+      var(--tile-given-4) 100%
+    );
+  }
+
+  .tile-solved {
+    background-image: linear-gradient(
+      to bottom,
+      var(--tile-solved-1) 0%,
+      var(--tile-solved-2) 49%,
+      var(--tile-solved-3) 51%,
+      var(--tile-solved-4) 100%
+    );
+  }
+
+  .tile-revealed {
+    color: oklch(0.9 0.02 var(--hue));
+    background-image: linear-gradient(
+      to bottom,
+      var(--tile-revealed-1) 0%,
+      var(--tile-revealed-2) 49%,
+      var(--tile-revealed-3) 51%,
+      var(--tile-revealed-4) 100%
+    );
+  }
+
+  /* Small recessed label on a tile: "hint used" or "revealed". */
+  .tile-badge {
+    margin-left: 0.5rem;
+    padding: 0.0625rem 0.375rem;
+    border-radius: 9999px;
+    background-color: rgb(0 0 0 / 0.28);
+    box-shadow: inset 0 1px 1px rgb(0 0 0 / 0.25);
+    font-size: 0.65rem;
+    font-weight: 500;
+    letter-spacing: normal;
+    text-transform: none;
+    text-shadow: none;
+    white-space: nowrap;
+  }
+
+  /* Crossword-style letter count at the right edge of an unsolved rung (parent must be relative). */
+  .tile-count {
+    position: absolute;
+    top: 0;
+    right: 0.75rem;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    color: var(--ink-muted);
+    font-size: 0.75rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: normal;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  /* Empty rung slots: recessed. */
+  .tile-slot {
+    border: 1px dashed var(--line-strong);
+    border-radius: 0.5rem;
+    background-color: var(--field);
+    box-shadow: inset 0 2px 4px var(--shadow);
+  }
+
+  button.tile-slot {
+    color: var(--ink-muted);
+    transition:
+      border-color 120ms ease,
+      box-shadow 120ms ease;
+  }
+
+  button.tile-slot:hover {
+    border-color: var(--accent);
+    color: var(--ink);
+    box-shadow:
+      inset 0 2px 4px var(--shadow),
+      0 0 8px var(--focus-glow);
+  }
+
+  /* Clue list rows. */
+  .list-item {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    background-image: linear-gradient(to bottom, var(--surface-top), var(--surface-muted));
+    box-shadow: inset 0 1px 0 var(--gloss);
+  }
+
+  .list-item-hint {
+    border-color: var(--hint);
+    background-image: none;
+    background-color: var(--hint-soft);
+    box-shadow:
+      inset 0 1px 0 var(--gloss),
+      0 0 10px color-mix(in srgb, var(--hint) 45%, transparent);
+  }
+
+  .list-item-current {
+    border-color: var(--accent);
+    box-shadow:
+      inset 0 1px 0 var(--gloss),
+      0 0 0 1px var(--accent),
+      0 0 10px var(--focus-glow);
+  }
+
+  .list-item-used {
+    border-style: dashed;
+    background-image: none;
+    color: var(--ink-muted);
+    box-shadow: none;
+  }
+
+  /* Selectable option card (e.g. color themes) with a Breeze-style radio. */
+  .choice {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 0.625rem;
+    cursor: pointer;
+    background-image: linear-gradient(to bottom, var(--surface-top), var(--surface-muted));
+    box-shadow: inset 0 1px 0 var(--gloss);
+    transition:
+      border-color 120ms ease,
+      box-shadow 120ms ease;
+  }
+
+  .choice:hover {
+    border-color: var(--accent);
+  }
+
+  .choice:has(:checked) {
+    border-color: var(--accent);
+    box-shadow:
+      inset 0 1px 0 var(--gloss),
+      0 0 0 1px var(--accent),
+      0 0 10px var(--focus-glow);
+  }
+
+  .choice:has(:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .radio {
+    display: grid;
+    flex-shrink: 0;
+    place-content: center;
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    border: 1px solid var(--field-border);
+    border-radius: 9999px;
+    background-color: var(--field);
+    box-shadow: inset 0 1px 2px var(--shadow);
+    appearance: none;
+  }
+
+  .radio::before {
+    content: '';
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background-color: var(--accent);
+    transform: scale(0);
+  }
+
+  .radio:checked {
+    border-color: var(--accent);
+  }
+
+  .radio:checked::before {
+    transform: scale(1);
+  }
+
+  .radio:focus-visible {
+    outline: none;
+  }
+
+  /* Color theme preview; set data-color on the element to preview that theme's hue. */
+  .swatch {
+    flex-shrink: 0;
+    width: 2.25rem;
+    height: 1.5rem;
+    border: 1px solid oklch(0.3 0.08 var(--hue));
+    border-radius: 0.375rem;
+    background-image: linear-gradient(
+      to bottom,
+      oklch(calc(0.74 + var(--lift)) calc(0.11 * var(--vivid)) var(--hue)) 0%,
+      oklch(calc(0.6 + var(--lift)) calc(0.13 * var(--vivid)) var(--hue)) 49%,
+      oklch(calc(0.53 + var(--lift)) calc(0.13 * var(--vivid)) var(--hue)) 51%,
+      oklch(calc(0.61 + var(--lift)) calc(0.13 * var(--vivid)) var(--hue)) 100%
+    );
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35);
+  }
+
+  /* Modal window (native <dialog>, combined with .panel). */
+  .dialog {
+    width: min(40rem, calc(100vw - 2rem));
+    max-width: none;
+    max-height: calc(100dvh - 2rem);
+    margin: auto;
+    padding: 0;
+    color: var(--ink);
+  }
+
+  .dialog::backdrop {
+    background-color: rgb(0 0 0 / 0.55);
+  }
+
+  /* Collapsible panel with a glossy summary row. */
+  .disclosure {
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    background-color: var(--surface-muted);
+  }
+
+  .disclosure > summary {
+    cursor: pointer;
+    background-image: linear-gradient(
+      to bottom,
+      var(--button-1) 0%,
+      var(--button-2) 49%,
+      var(--button-3) 51%,
+      var(--button-4) 100%
+    );
+    box-shadow: inset 0 1px 0 var(--gloss);
+  }
+
+  .disclosure[open] > summary {
+    border-bottom: 1px solid var(--line);
+  }
+}

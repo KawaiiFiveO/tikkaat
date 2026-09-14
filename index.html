@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Ladder icon; keep in sync with src/components/LadderIcon.tsx. -->
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='a' x1='0' y1='0' x2='1' y2='0'><stop offset='0' stop-color='%233f7fcf'/><stop offset='.35' stop-color='%23a9d4ff'/><stop offset='.6' stop-color='%234f93e0'/><stop offset='1' stop-color='%232a62ad'/></linearGradient><linearGradient id='b' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23a9d4ff'/><stop offset='.49' stop-color='%235b9be6'/><stop offset='.51' stop-color='%233a78c6'/><stop offset='1' stop-color='%235a94dc'/></linearGradient></defs><g stroke='%230f325e' stroke-width='1'><g fill='url(%23b)'><rect x='10' y='5.5' width='12' height='3' rx='1'/><rect x='10' y='12' width='12' height='3' rx='1'/><rect x='10' y='18.5' width='12' height='3' rx='1'/><rect x='10' y='25' width='12' height='3' rx='1'/></g><g fill='url(%23a)'><rect x='6.5' y='1.5' width='4' height='29' rx='2'/><rect x='21.5' y='1.5' width='4' height='29' rx='2'/></g></g></svg>"
+    />
+    <title>Tikkaat</title>
+    <meta
+      name="description"
+      content="The word-ladder transformation puzzle game. Build and share custom word ladder puzzles."
+    />
+    <!-- Link previews (Discord, social sites). theme-color sets Discord's embed accent. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Tikkaat" />
+    <meta property="og:title" content="Tikkaat" />
+    <meta
+      property="og:description"
+      content="The word-ladder transformation puzzle game. Build and share custom word ladder puzzles."
+    />
+    <meta name="twitter:card" content="summary" />
+    <meta name="theme-color" content="#4f8fdc" />
+    <script>
+      // Apply the theme and color theme before first paint to avoid a flash.
+      // Keep in sync with src/lib/theme.ts (COLOR_THEMES) and the [data-color] rules in src/index.css.
+      (function () {
+        var theme = 'dark';
+        var color = 'lubuntu';
+        try {
+          if (localStorage.getItem('tikkaat:theme') === 'light') theme = 'light';
+          var saved = localStorage.getItem('tikkaat:color');
+          if (['lubuntu', 'mint', 'gentoo', 'warty'].indexOf(saved) >= 0) color = saved;
+        } catch (e) {}
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.dataset.color = color;
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
