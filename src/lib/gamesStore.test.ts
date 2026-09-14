@@ -43,8 +43,8 @@ function titles(storage: Storage): string[] {
 }
 
 describe('puzzleId', () => {
-  it('matches the existing progress key format (a hash of the share string)', () => {
-    expect(STORAGE_KEYS.progress(puzzleId(A))).toBe(`tikkaat:progress:${hashString(toShareString(A))}`);
+  it('is a hash of the canonical save-file JSON', () => {
+    expect(STORAGE_KEYS.progress(puzzleId(A))).toBe(`tikkaat:progress:${hashString(JSON.stringify(toSaveFile(A)))}`);
   });
 
   it('is the same however the puzzle was opened', () => {
@@ -202,6 +202,24 @@ describe('openSavedGames', () => {
     expect(storage.getItem(STORAGE_KEYS.legacyActive)).toBeNull();
   });
 
+  it('moves games saved under an older id to the current id, keeping progress', () => {
+    const { source } = loadShareString(toShareString(A));
+    const storage = createMemoryStorage({
+      [STORAGE_KEYS.games]: JSON.stringify([
+        { id: 'old', title: 'Ladder A', startWord: 'HIT', endWord: 'COG', lastPlayed: T1.toISOString(), started: true },
+      ]),
+      [STORAGE_KEYS.game('old')]: JSON.stringify({ ...source, code: 'OldFormatCode123' }),
+      [STORAGE_KEYS.progress('old')]: JSON.stringify(applyHint(createProgress(A))),
+    });
+
+    expect(openSavedGames(storage, T2).map((entry) => entry.id)).toEqual([puzzleId(A)]);
+    const [game] = listSavedGames(storage);
+    expect(game?.source).toEqual({ json: source.json });
+    expect(game?.started).toBe(true);
+    expect(game?.progress.hints[0]).toBe(1);
+    expect(storageKeys(storage).some((key) => key.endsWith(':old'))).toBe(false);
+  });
+
   it('drops a malformed legacy active puzzle', () => {
     const storage = createMemoryStorage({ [STORAGE_KEYS.legacyActive]: '{"json":"nope"}' });
     expect(openSavedGames(storage, T1)).toEqual([]);
@@ -215,6 +233,12 @@ describe('restoreSource', () => {
     const fromCode = loadShareString(toShareString(EXAMPLE_PUZZLE)).source;
     expect(restoreSource(JSON.parse(JSON.stringify(fromFile)))).toEqual(fromFile);
     expect(restoreSource(JSON.parse(JSON.stringify(fromCode)))).toEqual(fromCode);
+  });
+
+  it('drops a stored code that no longer opens the puzzle', () => {
+    const fromCode = loadShareString(toShareString(EXAMPLE_PUZZLE)).source;
+    expect(restoreSource({ ...fromCode, code: 'OldFormatCode123' })).toEqual({ json: fromCode.json });
+    expect(restoreSource({ ...fromCode, code: toShareString(B) })).toEqual({ json: fromCode.json });
   });
 
   it('rejects malformed or unparseable sources', () => {

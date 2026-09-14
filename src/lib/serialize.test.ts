@@ -1,4 +1,6 @@
+import { deflateSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
+import { encodeBase62 } from './base62';
 import { EXAMPLE_PUZZLE } from './examplePuzzle';
 import {
   fromFileJson,
@@ -19,7 +21,10 @@ import {
   toShareString,
 } from './serialize';
 import type { Puzzle } from './types';
-import { normalizePuzzle } from './validate';
+import { LIMITS, normalizePuzzle } from './validate';
+
+/** A share code for an arbitrary payload, for testing what decoding accepts. */
+const codeFor = (payload: unknown) => encodeBase62(deflateSync(new TextEncoder().encode(JSON.stringify(payload))));
 
 const FINNISH_PUZZLE: Puzzle = {
   metadata: {
@@ -70,6 +75,28 @@ describe('share strings and links', () => {
     }
   });
 
+  it('round-trips a puzzle at every limit', () => {
+    const word = (i: number) => `ÅÄÖ SANA ${i}`.padEnd(LIMITS.wordMaxLength, 'X');
+    const text = (length: number) => 'Lisää {word} ja käännä, jotta saat jotain muuta. '.repeat(20).slice(0, length);
+    const puzzle: Puzzle = {
+      metadata: {
+        title: text(LIMITS.titleMaxLength),
+        creatorName: text(LIMITS.creatorMaxLength),
+        dateCreated: '2026-09-14T08:30:00.000Z',
+        aboutThisPuzzle: text(LIMITS.aboutMaxLength),
+        completionMessage: text(LIMITS.completionMessageMaxLength),
+      },
+      startWord: word(100),
+      endWord: word(101),
+      rungs: Array.from({ length: LIMITS.maxRungs }, (_, i) => word(i)),
+      clues: Array.from({ length: LIMITS.maxRungs + 1 }, (_, i) => `${i} ${text(LIMITS.clueMaxLength)}`.slice(0, 150)),
+      clueBankOrder: Array.from({ length: LIMITS.maxRungs + 1 }, (_, i) => (i * 8) % (LIMITS.maxRungs + 1)),
+    };
+    const code = toShareString(puzzle);
+    expect(code).toMatch(/^[0-9A-Za-z]+$/);
+    expect(fromShareString(code)).toEqual(normalizePuzzle(puzzle));
+  });
+
   it('is stable across re-export', () => {
     const code = toShareString(EXAMPLE_PUZZLE);
     expect(toShareString(fromShareString(code))).toBe(code);
@@ -98,6 +125,39 @@ describe('import errors', () => {
     expectImportError(() => fromShareString(code.slice(0, -5)));
     expectImportError(() => fromShareString(code.slice(5)));
     expectImportError(() => fromShareString('zzzzzzzzzzzz'));
+    expectImportError(() => fromShareString('A'.repeat(60_000)));
+  });
+
+  describe('share code payloads', () => {
+    const tuple = [
+      1,
+      'From HIT to COG',
+      'Tikkaat',
+      '2026-09-14T00:00:00.000Z',
+      'About',
+      ['HIT', 'hot', 'DOT', 'DOG', 'COG'],
+      EXAMPLE_PUZZLE.clues,
+      [2, 0, 3, 1],
+    ];
+    const withItem = (index: number, value: unknown) => tuple.map((item, i) => (i === index ? value : item));
+
+    it('accepts a valid payload and normalizes it', () => {
+      const puzzle = fromShareString(codeFor([...tuple, 'Well done']));
+      expect(puzzle.rungs).toEqual(['HOT', 'DOT', 'DOG']);
+      expect(puzzle.metadata.completionMessage).toBe('Well done');
+      expect(fromShareString(codeFor(tuple)).metadata.completionMessage).toBe('');
+    });
+
+    it('rejects newer versions, wrong shapes, and invalid puzzles', () => {
+      expect(() => fromShareString(codeFor(withItem(0, 2)))).toThrow(/newer version/);
+      expectImportError(() => fromShareString(codeFor(toSaveFile(EXAMPLE_PUZZLE))));
+      expectImportError(() => fromShareString(codeFor(withItem(1, 42))));
+      expectImportError(() => fromShareString(codeFor(withItem(5, 'HIT HOT DOT DOG COG'))));
+      expectImportError(() => fromShareString(codeFor(withItem(6, ['no placeholder', 'a', 'b', 'c']))));
+      expectImportError(() => fromShareString(codeFor(withItem(7, [0, 0, 1, 2]))));
+      expectImportError(() => fromShareString(codeFor([...tuple, 42])));
+      expectImportError(() => fromShareString(codeFor([...tuple, 'message', 'extra'])));
+    });
   });
 
   it('rejects files that are not puzzles', () => {

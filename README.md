@@ -2,11 +2,13 @@
 
 Sanaketjumuunnospulmapeli - the word-chain-transformation-puzzle-game
 
-Features an interpreter and custom puzzle builder.
+Features a game interpreter and custom puzzle builder.
+
+Save puzzles as raw `.tikkaat` files, share them as `fflate`-compressed URLs or strings. Progress is stored in the browser.
 
 ## Development
 
-Requires Node.js 20.19+ or 22.12+.
+Requires Node.js 22.12+.
 
 ```sh
 npm install      # install dependencies

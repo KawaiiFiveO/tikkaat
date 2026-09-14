@@ -1,7 +1,7 @@
 import { createProgress, hasProgress, restoreProgress, type GameProgress } from './game';
 import { isRecord, isString } from './guards';
 import { hashString } from './hash';
-import { loadFileJson, toShareString, type LoadedPuzzle, type PuzzleSource } from './serialize';
+import { loadFileJson, loadShareString, toSaveFile, type LoadedPuzzle, type PuzzleSource } from './serialize';
 import { readStorage, removeKeysWithPrefix, removeStorage, STORAGE_KEYS, writeStorage } from './storage';
 import type { Puzzle } from './types';
 
@@ -10,7 +10,7 @@ import type { Puzzle } from './types';
  *   tikkaat:games        list of GameEntry, most recently played first
  *   tikkaat:game:<id>    the puzzle's original source ({ json, code?, fileName? }), never re-serialized
  *   tikkaat:progress:<id>  the player's progress (see Player)
- * <id> is puzzleId(): a hash of the canonical share string, so every way of opening the same
+ * <id> is puzzleId(): a hash of the canonical save-file JSON, so every way of opening the same
  * puzzle (link, code, file) shares one entry and one progress record.
  *
  * A game is "started" once the player solves a rung or uses a hint (see markGameStarted), and stays
@@ -43,16 +43,32 @@ export function isKeptGame(game: SavedGame): boolean {
 }
 
 export function puzzleId(puzzle: Puzzle): string {
-  return hashString(toShareString(puzzle));
+  return hashString(JSON.stringify(toSaveFile(puzzle)));
 }
 
-/** Loads a puzzle from its stored original source, or null if it no longer parses. */
-export function loadSource(source: PuzzleSource): LoadedPuzzle | null {
+function codeOpens(code: string, puzzle: Puzzle): boolean {
   try {
-    return { puzzle: loadFileJson(source.json).puzzle, source };
+    return puzzleId(loadShareString(code).puzzle) === puzzleId(puzzle);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Loads a puzzle from its stored original source, or null if it no longer parses. A stored share
+ * code that doesn't open the puzzle (e.g. one in an older code format) is dropped from the source.
+ */
+export function loadSource(source: PuzzleSource): LoadedPuzzle | null {
+  let puzzle: Puzzle;
+  try {
+    puzzle = loadFileJson(source.json).puzzle;
   } catch {
     return null;
   }
+  if (source.code === undefined || codeOpens(source.code, puzzle)) return { puzzle, source };
+  const withoutCode: PuzzleSource = { json: source.json };
+  if (source.fileName !== undefined) withoutCode.fileName = source.fileName;
+  return { puzzle, source: withoutCode };
 }
 
 function sourceShape(raw: unknown): PuzzleSource | null {
@@ -65,10 +81,10 @@ function sourceShape(raw: unknown): PuzzleSource | null {
   return source;
 }
 
-/** Validates a stored puzzle source: the right shape, and its puzzle still loads. */
+/** Validates a stored puzzle source: the right shape, and its puzzle still loads (see loadSource). */
 export function restoreSource(raw: unknown): PuzzleSource | null {
   const source = sourceShape(raw);
-  return source && loadSource(source) ? source : null;
+  return (source && loadSource(source)?.source) ?? null;
 }
 
 function isEntry(value: unknown): value is GameEntry {
@@ -197,8 +213,40 @@ export function preferStoredSource(loaded: LoadedPuzzle, storage?: Storage): Loa
   return stored && puzzleId(stored.puzzle) === id ? stored : loaded;
 }
 
-/** Loads the saved games list, first moving in the single active puzzle saved by earlier versions. */
+/**
+ * Moves saved games stored under an id from an older puzzleId (earlier versions hashed the share
+ * code) to their current id, along with their source and progress.
+ */
+function migrateGameIds(storage?: Storage): void {
+  const entries = readEntries(storage);
+  const migrated: GameEntry[] = [];
+  let changed = false;
+  for (const entry of entries) {
+    const source = sourceShape(readStorage(STORAGE_KEYS.game(entry.id), storage));
+    const loaded = source && loadSource(source);
+    const id = loaded ? puzzleId(loaded.puzzle) : entry.id;
+    if (!loaded || id === entry.id) {
+      migrated.push(entry);
+      continue;
+    }
+    changed = true;
+    const progress = readStorage(STORAGE_KEYS.progress(entry.id), storage);
+    forgetGame(entry.id, storage);
+    // The same puzzle is already saved under its current id.
+    if ([...entries, ...migrated].some((other) => other.id === id)) continue;
+    writeStorage(STORAGE_KEYS.game(id), loaded.source, storage);
+    if (progress !== null) writeStorage(STORAGE_KEYS.progress(id), progress, storage);
+    migrated.push({ ...entry, id });
+  }
+  if (changed) writeEntries(migrated, storage);
+}
+
+/**
+ * Loads the saved games list, first moving games saved under older ids and the single active
+ * puzzle saved by earlier versions.
+ */
 export function openSavedGames(storage?: Storage, now: Date = new Date()): GameEntry[] {
+  migrateGameIds(storage);
   const legacy = readStorage(STORAGE_KEYS.legacyActive, storage);
   if (legacy !== null) {
     removeStorage(STORAGE_KEYS.legacyActive, storage);

@@ -16,7 +16,7 @@ export const STORAGE_KEYS = {
   games: 'tikkaat:games',
   /** One saved game's original puzzle source. */
   game: (puzzleId: string) => `tikkaat:game:${puzzleId}`,
-  /** Progress for a puzzle, keyed by its puzzle id (a hash of its share string; see gamesStore). */
+  /** Progress for a puzzle, keyed by its puzzle id (a hash of its canonical save-file JSON; see gamesStore). */
   progress: (puzzleId: string) => `tikkaat:progress:${puzzleId}`,
 } as const;
 
