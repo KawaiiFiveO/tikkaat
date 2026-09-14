@@ -88,6 +88,8 @@ export function Builder({
               max={LIMITS.titleMaxLength}
               onChange={(title) => updateMetadata({ title })}
               errors={errorsFor('metadata.title')}
+              // Visible text, since the button's tooltip doesn't show on touch screens.
+              hint={suggestedTitle ? undefined : 'Fill in the start and end words to use Suggest title.'}
               action={
                 <Button
                   variant="ghost"
@@ -197,9 +199,9 @@ export function Builder({
             <Button variant="primary" onClick={handlePlaytest}>
               Playtest
             </Button>
-            {!valid && !showErrors && (
-              <Button variant="ghost" size="sm" onClick={() => setShowErrors(true)}>
-                Show what's missing
+            {!valid && (
+              <Button variant="ghost" size="sm" aria-pressed={showErrors} onClick={() => setShowErrors(!showErrors)}>
+                {showErrors ? "Hide what's missing" : "Show what's missing"}
               </Button>
             )}
             <Button onClick={() => onChange(reshuffleClues(draft))}>Shuffle clue order</Button>

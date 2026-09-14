@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
   activeRung,
   applyHint,
@@ -6,6 +6,7 @@ import {
   clueBank,
   completedClues,
   createProgress,
+  currentWordIndex,
   displayScore,
   hasProgress,
   isComplete,
@@ -19,7 +20,7 @@ import {
   type Direction,
   type GameProgress,
 } from '../lib/game';
-import { markGameStarted, puzzleId } from '../lib/gamesStore';
+import { isGameStarted, markGameStarted, puzzleId } from '../lib/gamesStore';
 import { sourceFileName, sourceFileText, sourceShareCode, type PuzzleSource } from '../lib/serialize';
 import { enumeration, enumerationLabel } from '../lib/normalize';
 import { readStorage, STORAGE_KEYS, writeStorage } from '../lib/storage';
@@ -28,6 +29,7 @@ import { ClueText } from './ClueText';
 import { InstructionsPanel } from './InstructionsPanel';
 import { ShareButtons } from './SharePanel';
 import { Button, Card } from './ui';
+import { useMediaQuery } from './useMediaQuery';
 
 export type PlayMode = 'shared' | 'playtest';
 
@@ -63,14 +65,32 @@ export function Player({ puzzle, mode, source, onExit }: PlayerProps) {
   const [guess, setGuess] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [shaking, setShaking] = useState(false);
+  // Phones (the one-column layout) type in an answer bar pinned above the keyboard, next to the clues.
+  const answerBar = useMediaQuery('(width < 48rem)');
+  const guessInput = useRef<HTMLInputElement>(null);
+  const guessId = useId();
+  // Whether the saved game is kept in the saved games list (started, or saved for later).
+  const [kept, setKept] = useState(() => gameId !== null && isGameStarted(gameId));
+  const [savedForLater, setSavedForLater] = useState(false);
 
   // Save progress; the first solve or hint marks the saved game as started, so it stays in the
   // saved games list even after a reset.
   useEffect(() => {
     if (!gameId || !storageKey) return;
     writeStorage(storageKey, progress);
-    if (hasProgress(progress)) markGameStarted(gameId);
+    if (hasProgress(progress)) {
+      markGameStarted(gameId);
+      setKept(true);
+    }
   }, [gameId, storageKey, progress]);
+
+  // Keeps a freshly opened, unplayed puzzle in the saved games list.
+  function saveForLater() {
+    if (!gameId) return;
+    markGameStarted(gameId);
+    setKept(true);
+    setSavedForLater(true);
+  }
 
   const words = ladderWords(puzzle);
   const letterCounts = useMemo(() => puzzle.rungs.map(enumeration), [puzzle]);
@@ -82,6 +102,8 @@ export function Player({ puzzle, mode, source, onExit }: PlayerProps) {
   const bank = clueBank(puzzle, progress);
   const hintStage = active >= 0 ? (progress.hints[active] ?? 0) : 0;
   const otherDirection: Direction = progress.direction === 'down' ? 'up' : 'down';
+  const guessPlaceholder = progress.direction === 'down' ? '↓ Next word' : '↑ Previous word';
+  const currentWord = words[currentWordIndex(progress)] ?? '';
   const { title, creatorName, dateCreated, aboutThisPuzzle, completionMessage } = puzzle.metadata;
 
   const resetInput = () => {
@@ -118,6 +140,8 @@ export function Player({ puzzle, mode, source, onExit }: PlayerProps) {
   function changeDirection(direction: Direction) {
     setProgress((p) => setDirection(p, direction));
     resetInput();
+    // Picking where to solve from is a tap, so the keyboard can open for the answer bar right away.
+    if (answerBar) guessInput.current?.focus();
   }
 
   // Start over: fresh progress (saved over the old progress) and the puzzle's original clue order.
@@ -152,7 +176,7 @@ export function Player({ puzzle, mode, source, onExit }: PlayerProps) {
               {formatDate(dateCreated)}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="inset-box px-3 py-1.5 text-right">
               <div className="text-xs text-ink-muted">Rungs</div>
               <div className="font-semibold tabular-nums">
@@ -173,8 +197,18 @@ export function Player({ puzzle, mode, source, onExit }: PlayerProps) {
         </div>
         {aboutThisPuzzle && <p className="mt-3 whitespace-pre-line text-ink-muted">{aboutThisPuzzle}</p>}
         {share && (
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <ShareButtons {...share} layout="row" />
+            {gameId && !kept && (
+              <Button size="sm" onClick={saveForLater} title="Keep this puzzle in Saved games before you start solving">
+                Save for later
+              </Button>
+            )}
+            {savedForLater && !hasProgress(progress) && (
+              <span role="status" className="text-sm text-success">
+                Saved to Saved games
+              </span>
+            )}
           </div>
         )}
         <InstructionsPanel className="mt-4" />
@@ -210,6 +244,26 @@ export function Player({ puzzle, mode, source, onExit }: PlayerProps) {
                   </li>
                 );
               }
+              if (rung === active && answerBar) {
+                // Mirrors what's typed in the answer bar; tapping it focuses the bar's input.
+                return (
+                  <li key={wordIndex}>
+                    <button
+                      type="button"
+                      onClick={() => guessInput.current?.focus()}
+                      aria-label={`Rung ${rung + 1}, ${enumerationLabel(letterCounts[rung] ?? '')}. Type it in the answer box.`}
+                      className="field field-active relative flex h-12 w-full min-w-0 items-center justify-center overflow-hidden px-14 font-semibold tracking-[0.15em] whitespace-nowrap uppercase"
+                    >
+                      {guess || (
+                        <span className="font-normal tracking-normal text-ink-muted normal-case">{guessPlaceholder}</span>
+                      )}
+                      <span className="tile-count" aria-hidden="true">
+                        {letterCounts[rung]}
+                      </span>
+                    </button>
+                  </li>
+                );
+              }
               if (rung === active) {
                 return (
                   <li key={wordIndex}>
@@ -224,7 +278,7 @@ export function Player({ puzzle, mode, source, onExit }: PlayerProps) {
                         value={guess}
                         onChange={(event) => handleGuessChange(event.target.value)}
                         aria-label={`Rung ${rung + 1}, ${enumerationLabel(letterCounts[rung] ?? '')}, solving ${progress.direction === 'down' ? 'downwards' : 'upwards'}`}
-                        placeholder={progress.direction === 'down' ? '↓ Next word' : '↑ Previous word'}
+                        placeholder={guessPlaceholder}
                         autoComplete="off"
                         autoCapitalize="characters"
                         spellCheck={false}
@@ -275,9 +329,11 @@ export function Player({ puzzle, mode, source, onExit }: PlayerProps) {
 
           {!complete && (
             <div className="mt-4 flex flex-col gap-2">
-              <p role="status" className="min-h-5 text-sm text-danger">
-                {feedback}
-              </p>
+              {!answerBar && (
+                <p role="status" className="min-h-5 text-sm text-danger">
+                  {feedback}
+                </p>
+              )}
               <Button onClick={handleHint}>{hintStage === 0 ? 'Hint: which clue?' : 'Hint: reveal word'}</Button>
               {top !== bottom && (
                 <Button variant="ghost" onClick={() => changeDirection(otherDirection)}>
@@ -354,6 +410,42 @@ export function Player({ puzzle, mode, source, onExit }: PlayerProps) {
           </Card>
         )}
       </div>
+
+      {answerBar && !complete && (
+        <form
+          onSubmit={handleSubmit}
+          onAnimationEnd={() => setShaking(false)}
+          className={`answer-bar ${shaking ? 'motion-safe:animate-shake' : ''}`}
+        >
+          <div className="flex min-h-5 items-center justify-between gap-2 text-xs">
+            <label htmlFor={guessId} className="min-w-0 truncate text-ink-muted">
+              {progress.direction === 'down' ? `↓ Word after ${currentWord}` : `↑ Word before ${currentWord}`}
+              <span className="sr-only">, rung {active + 1}, {enumerationLabel(letterCounts[active] ?? '')}</span>
+            </label>
+            <span role="status" className="shrink-0 font-medium text-danger">
+              {feedback}
+            </span>
+          </div>
+          <div className="relative mt-1.5">
+            <input
+              ref={guessInput}
+              id={guessId}
+              value={guess}
+              onChange={(event) => handleGuessChange(event.target.value)}
+              placeholder={guessPlaceholder}
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              enterKeyHint="done"
+              maxLength={60}
+              className="field field-active h-12 w-full min-w-0 px-14 text-center font-semibold tracking-[0.15em] uppercase placeholder:font-normal placeholder:tracking-normal placeholder:normal-case"
+            />
+            <span className="tile-count" aria-hidden="true">
+              {letterCounts[active]}
+            </span>
+          </div>
+        </form>
+      )}
     </div>
   );
 }

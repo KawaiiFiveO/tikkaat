@@ -113,6 +113,22 @@ export function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
+  // The browser opens or downloads a file dropped where nothing accepts it, leaving the app. Reject
+  // file drops everywhere in the capture phase; the home screen's import panel accepts them again.
+  useEffect(() => {
+    const rejectFileDrop = (event: DragEvent) => {
+      if (!event.dataTransfer?.types.includes('Files')) return;
+      event.preventDefault();
+      if (event.type === 'dragover') event.dataTransfer.dropEffect = 'none';
+    };
+    window.addEventListener('dragover', rejectFileDrop, true);
+    window.addEventListener('drop', rejectFileDrop, true);
+    return () => {
+      window.removeEventListener('dragover', rejectFileDrop, true);
+      window.removeEventListener('drop', rejectFileDrop, true);
+    };
+  }, []);
+
   // Re-read on returning home (or after the list changes) so progress summaries are current.
   const savedGames = useMemo(() => (view.name === 'home' ? listSavedGames() : []), [view, games]);
   const keptGames = useMemo(() => savedGames.filter(isKeptGame), [savedGames]);
@@ -190,7 +206,7 @@ export function App() {
   return (
     <div className="flex min-h-screen flex-col text-ink">
       <header className="app-header">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
+        <div className="page-column flex items-center justify-between gap-4 py-3">
           <button
             type="button"
             onClick={() => setView({ name: 'home' })}
@@ -212,7 +228,7 @@ export function App() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
+      <main className="page-column flex-1 py-6">
         {view.name === 'home' && (
           <Home
             linkError={linkError}

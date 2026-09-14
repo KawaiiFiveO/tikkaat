@@ -154,6 +154,9 @@ function stripBom(text: string): string {
   return text.replace(/^﻿/, '');
 }
 
+/** Larger files aren't read at all, since a dropped file can be anything. Real puzzle files are a few KB. */
+export const MAX_PUZZLE_FILE_BYTES = 1_000_000;
+
 export function loadFileJson(text: string, fileName?: string): LoadedPuzzle {
   let data: unknown;
   try {

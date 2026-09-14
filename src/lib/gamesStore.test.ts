@@ -4,6 +4,7 @@ import { applyHint, createProgress } from './game';
 import {
   deleteAllGames,
   deleteGame,
+  isGameStarted,
   isKeptGame,
   listSavedGames,
   markGameStarted,
@@ -123,6 +124,19 @@ describe('started games', () => {
     recordGamePlayed(opened(A), storage, T1);
     expect(markGameStarted(puzzleId(A), storage)?.[0]?.started).toBe(true);
     expect(markGameStarted(puzzleId(A), storage)).toBeNull();
+  });
+
+  it('keeps a game saved for later without progress, even when another game is opened', () => {
+    const storage = createMemoryStorage();
+    recordGamePlayed(opened(A), storage, T1);
+    expect(isGameStarted(puzzleId(A), storage)).toBe(false);
+    markGameStarted(puzzleId(A), storage); // Save for later
+    expect(isGameStarted(puzzleId(A), storage)).toBe(true);
+
+    recordGamePlayed(opened(B), storage, T2);
+    recordGamePlayed(opened(C), storage, T3);
+    expect(titles(storage)).toEqual(['Ladder C', 'Ladder A']);
+    expect(isGameStarted('missing', storage)).toBe(false);
   });
 
   it('treats an unstarted game without progress as not kept', () => {

@@ -280,6 +280,16 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* iOS Safari zooms the page into text fields smaller than 16px when they get focus. Unlayered, so
+   it wins over text-size utilities. */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 1rem;
+  }
+}
+
 /* Page backdrop on a fixed layer, so scrolling never repaints it: a top glow, a corner
    glow, and two soft diagonal light streaks in the style of the Plasma 4 "Air" wallpaper. */
 body::before {
@@ -316,6 +326,18 @@ body::before {
 }
 
 @layer components {
+  /* Centered page column (header, main, footer). 100vw − 100% is the width of a classic scrollbar
+     (0 when there is none). Widening the column by it and adding it to the left padding keeps the
+     content centered on the whole window, so nothing shifts when a long page shows a scrollbar. */
+  .page-column {
+    --scrollbar: calc(100vw - 100%);
+    width: 100%;
+    max-width: calc(64rem + var(--scrollbar));
+    margin-inline: auto;
+    padding-left: calc(1rem + var(--scrollbar));
+    padding-right: 1rem;
+  }
+
   /* App header: a smooth Plasma-style panel with an accent glow along its lower edge. */
   .app-header {
     color: var(--header-ink);
@@ -339,9 +361,12 @@ body::before {
     color: var(--accent);
   }
 
-  .app-footer a:hover {
-    color: var(--accent-hover);
-    text-decoration: underline;
+  /* Hover effects only apply with a real pointer, so they don't stick after a tap on touch screens. */
+  @media (hover: hover) {
+    .app-footer a:hover {
+      color: var(--accent-hover);
+      text-decoration: underline;
+    }
   }
 
   /* Windows: soft gradient body, Air-style inner frame, optional glossy title bar. */
@@ -413,11 +438,13 @@ body::before {
       border-color 120ms ease;
   }
 
-  .btn:hover:not(:disabled) {
-    border-color: var(--accent);
-    box-shadow:
-      inset 0 1px 0 var(--gloss-strong),
-      0 0 8px var(--focus-glow);
+  @media (hover: hover) {
+    .btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      box-shadow:
+        inset 0 1px 0 var(--gloss-strong),
+        0 0 8px var(--focus-glow);
+    }
   }
 
   .btn:active:not(:disabled) {
@@ -446,11 +473,13 @@ body::before {
     text-shadow: 0 1px 1px rgb(0 0 0 / 0.35);
   }
 
-  .btn-danger:hover:not(:disabled) {
-    border-color: var(--danger);
-    box-shadow:
-      inset 0 1px 0 var(--gloss-strong),
-      0 0 8px color-mix(in oklch, var(--danger) 45%, transparent);
+  @media (hover: hover) {
+    .btn-danger:hover:not(:disabled) {
+      border-color: var(--danger);
+      box-shadow:
+        inset 0 1px 0 var(--gloss-strong),
+        0 0 8px color-mix(in oklch, var(--danger) 45%, transparent);
+    }
   }
 
   .btn-ghost {
@@ -463,12 +492,14 @@ body::before {
     box-shadow: none;
   }
 
-  .btn-ghost:hover:not(:disabled) {
-    --b1: var(--button-1);
-    --b2: var(--button-2);
-    --b3: var(--button-3);
-    --b4: var(--button-4);
-    --b-ink: var(--ink);
+  @media (hover: hover) {
+    .btn-ghost:hover:not(:disabled) {
+      --b1: var(--button-1);
+      --b2: var(--button-2);
+      --b3: var(--button-3);
+      --b4: var(--button-4);
+      --b-ink: var(--ink);
+    }
   }
 
   /* Translucent gel button for use on title bars and the header. */
@@ -484,10 +515,20 @@ body::before {
     box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25);
   }
 
-  .btn-bar:hover:not(:disabled) {
-    --b1: rgb(255 255 255 / 0.36);
-    --b2: rgb(255 255 255 / 0.18);
-    border-color: rgb(255 255 255 / 0.55);
+  @media (hover: hover) {
+    .btn-bar:hover:not(:disabled) {
+      --b1: rgb(255 255 255 / 0.36);
+      --b2: rgb(255 255 255 / 0.18);
+      border-color: rgb(255 255 255 / 0.55);
+    }
+  }
+
+  /* Touch screens: at least a 44px target, since compact desktop buttons are hard to hit with a finger. */
+  @media (pointer: coarse) {
+    .btn {
+      min-width: 2.75rem;
+      min-height: 2.75rem;
+    }
   }
 
   /* Text inputs: recessed, with an accent glow on focus. */
@@ -532,6 +573,25 @@ body::before {
     border-radius: 0.5rem;
     background-color: var(--field);
     box-shadow: inset 0 2px 4px var(--shadow);
+  }
+
+  /*
+   * Phone answer bar: pinned to the bottom of the screen, just above the on-screen keyboard, so the
+   * answer box stays next to the clues while they scroll.
+   */
+  .answer-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    padding: 0.625rem 0.75rem calc(0.625rem + env(safe-area-inset-bottom));
+    border: 1px solid var(--line-strong);
+    border-bottom: 0;
+    border-radius: 0.875rem 0.875rem 0 0;
+    background-color: var(--surface);
+    background-image: linear-gradient(to bottom, var(--surface-top), var(--surface-bottom));
+    box-shadow:
+      inset 0 1px 0 var(--gloss),
+      0 -6px 16px -6px var(--shadow);
   }
 
   /* Ladder tiles: glossy gel bars. */
@@ -645,12 +705,14 @@ body::before {
       box-shadow 120ms ease;
   }
 
-  button.tile-slot:hover {
-    border-color: var(--accent);
-    color: var(--ink);
-    box-shadow:
-      inset 0 2px 4px var(--shadow),
-      0 0 8px var(--focus-glow);
+  @media (hover: hover) {
+    button.tile-slot:hover {
+      border-color: var(--accent);
+      color: var(--ink);
+      box-shadow:
+        inset 0 2px 4px var(--shadow),
+        0 0 8px var(--focus-glow);
+    }
   }
 
   /*
@@ -727,8 +789,10 @@ body::before {
       box-shadow 120ms ease;
   }
 
-  .choice:hover {
-    border-color: var(--accent);
+  @media (hover: hover) {
+    .choice:hover {
+      border-color: var(--accent);
+    }
   }
 
   .choice:has(:checked) {
@@ -794,6 +858,19 @@ body::before {
       oklch(calc(0.61 + var(--lift)) calc(0.13 * var(--vivid)) var(--hue)) 100%
     );
     box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35);
+  }
+
+  /* Full-window highlight while a file is dragged over the home screen. It ignores the pointer, so the drop reaches the page. */
+  .drop-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    pointer-events: none;
+    background-color: color-mix(in oklch, var(--accent) 20%, rgb(0 0 0 / 0.5));
+    box-shadow: inset 0 0 0 3px var(--accent);
   }
 
   /* Modal window (native <dialog>, combined with .panel). */

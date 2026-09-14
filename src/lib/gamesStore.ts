@@ -13,8 +13,8 @@ import type { Puzzle } from './types';
  * <id> is puzzleId(): a hash of the canonical save-file JSON, so every way of opening the same
  * puzzle (link, code, file) shares one entry and one progress record.
  *
- * A game is "started" once the player solves a rung or uses a hint (see markGameStarted), and stays
- * started after a reset. Only the most recently played game may be unstarted (it's on the Continue
+ * A game is "started" once the player solves a rung, uses a hint, or saves it for later (see
+ * markGameStarted), and stays started after a reset. Only the most recently played game may be unstarted (it's on the Continue
  * card). Recording a new game prunes any other unstarted game, so peeked-at puzzles don't pile up.
  * Every function takes an optional Storage for tests.
  */
@@ -26,7 +26,7 @@ export interface GameEntry {
   endWord: string;
   /** ISO timestamp of when the game was last opened. */
   lastPlayed: string;
-  /** Present (true) once the player has solved a rung or used a hint; kept even after a reset. */
+  /** Present (true) once the player has solved a rung, used a hint, or saved the game for later; kept even after a reset. */
   started?: true;
 }
 
@@ -171,9 +171,15 @@ export function recordGamePlayed(loaded: LoadedPuzzle, storage?: Storage, now: D
   return writeEntries([entry, ...others], storage);
 }
 
+/** Whether a listed game is marked as started, so it's kept in the saved games list. */
+export function isGameStarted(id: string, storage?: Storage): boolean {
+  return readEntries(storage).some((entry) => entry.id === id && entry.started);
+}
+
 /**
- * Marks a saved game as started (called when the player solves a rung or uses a hint), so it
- * stays in the list even after a reset. Returns the updated list, or null if nothing changed.
+ * Marks a saved game as started (called when the player solves a rung, uses a hint, or saves the
+ * game for later), so it stays in the list even after a reset. Returns the updated list, or null
+ * if nothing changed.
  */
 export function markGameStarted(id: string, storage?: Storage): GameEntry[] | null {
   const entries = readEntries(storage);

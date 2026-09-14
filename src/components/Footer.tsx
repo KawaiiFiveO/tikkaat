@@ -3,7 +3,7 @@ import { COPYRIGHT_HOLDER, COPYRIGHT_URL, COPYRIGHT_YEAR, REPO_URL } from '../li
 export function Footer() {
   return (
     <footer className="app-footer">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 text-xs">
+      <div className="page-column flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-3 text-xs">
         <p>
           sanaketjumuunnospulmapeli © {COPYRIGHT_YEAR}{' '}
           <a href={COPYRIGHT_URL} target="_blank" rel="noreferrer">
