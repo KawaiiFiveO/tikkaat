@@ -22,8 +22,10 @@ import {
 } from './lib/draftStore';
 import { EXAMPLE_PUZZLE } from './lib/examplePuzzle';
 import {
+  clearCurrentGame,
   deleteAllGames,
   deleteGame,
+  isCurrentGameCleared,
   isKeptGame,
   listSavedGames,
   openSavedGames,
@@ -75,6 +77,7 @@ export function App() {
   );
   const [linkError, setLinkError] = useState(initial.error);
   const [games, setGames] = useState<GameEntry[]>(initial.games);
+  const [currentGameCleared, setCurrentGameCleared] = useState(() => isCurrentGameCleared());
   const [initialDraft] = useState(() => openInitialDraft());
   const [draftId, setDraftId] = useState(initialDraft.id);
   const [draft, setDraft] = useState<Puzzle>(initialDraft.draft);
@@ -93,6 +96,7 @@ export function App() {
     setUrlHash(source ? sourceShareCode(source) : null);
     if (view.name === 'play' && view.source) {
       setGames(recordGamePlayed({ puzzle: view.puzzle, source: view.source }));
+      setCurrentGameCleared(false);
     }
     window.scrollTo(0, 0);
   }, [view]);
@@ -135,11 +139,20 @@ export function App() {
 
   const deleteSavedGame = (id: string) => setGames(deleteGame(id));
 
+  // Remove the most recently played game from the Continue card (a started game stays in Saved
+  // games). If a shared puzzle is being played, go home, since staying would make it current again.
+  const clearCurrent = () => {
+    setGames(clearCurrentGame());
+    setCurrentGameCleared(true);
+    if (view.name === 'play' && view.mode === 'shared') setView({ name: 'home' });
+  };
+
   // Delete every saved game and all progress. If a shared puzzle is being played, go home,
   // since staying would record it (and its progress) again.
   const deleteAllSavedGames = () => {
     deleteAllGames();
     setGames([]);
+    setCurrentGameCleared(false);
     if (view.name === 'play' && view.mode === 'shared') setView({ name: 'home' });
   };
 
@@ -218,6 +231,8 @@ export function App() {
             <ColorThemePicker />
             <ThemeToggle />
             <SettingsMenu
+              currentGameTitle={currentGameCleared ? null : (games[0]?.title ?? null)}
+              onClearCurrentGame={clearCurrent}
               savedGameCount={games.length}
               onDeleteAllGames={deleteAllSavedGames}
               draftCount={drafts.length}
@@ -232,7 +247,7 @@ export function App() {
         {view.name === 'home' && (
           <Home
             linkError={linkError}
-            currentGame={savedGames[0] ?? null}
+            currentGame={currentGameCleared ? null : (savedGames[0] ?? null)}
             savedGames={keptGames}
             onContinue={(game) => play(game.puzzle, 'shared', game.source)}
             onDeleteGame={deleteSavedGame}

@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { EXAMPLE_PUZZLE } from './examplePuzzle';
 import { applyHint, createProgress } from './game';
 import {
+  clearCurrentGame,
   deleteAllGames,
   deleteGame,
+  isCurrentGameCleared,
   isGameStarted,
   isKeptGame,
   listSavedGames,
@@ -164,6 +166,37 @@ describe('listSavedGames', () => {
   });
 });
 
+describe('clearCurrentGame', () => {
+  it('hides a started game from the Continue card, keeping it and its progress', () => {
+    const storage = createMemoryStorage();
+    addProgress(A, storage);
+    recordGamePlayed(opened(A), storage, T1);
+    expect(isCurrentGameCleared(storage)).toBe(false);
+
+    expect(clearCurrentGame(storage).map((entry) => entry.title)).toEqual(['Ladder A']);
+    expect(isCurrentGameCleared(storage)).toBe(true);
+    expect(listSavedGames(storage)[0]?.progress.hints[0]).toBe(1);
+  });
+
+  it('deletes an unstarted current game, leaving other games listed', () => {
+    const storage = createMemoryStorage();
+    addProgress(A, storage);
+    recordGamePlayed(opened(A), storage, T1);
+    recordGamePlayed(opened(B), storage, T2); // opened but never played
+
+    expect(clearCurrentGame(storage).map((entry) => entry.title)).toEqual(['Ladder A']);
+    expect(storageKeys(storage).some((key) => key.endsWith(puzzleId(B)))).toBe(false);
+    expect(isCurrentGameCleared(storage)).toBe(true);
+  });
+
+  it('shows the Continue card again once a game is opened', () => {
+    const storage = createMemoryStorage();
+    expect(clearCurrentGame(storage)).toEqual([]);
+    recordGamePlayed(opened(A), storage, T1);
+    expect(isCurrentGameCleared(storage)).toBe(false);
+  });
+});
+
 describe('deleteGame and deleteAllGames', () => {
   it('deletes one game with its source and progress', () => {
     const storage = createMemoryStorage();
@@ -180,6 +213,7 @@ describe('deleteGame and deleteAllGames', () => {
     const storage = createMemoryStorage({
       [STORAGE_KEYS.progress('orphan')]: '{}',
       [STORAGE_KEYS.legacyActive]: '{}',
+      [STORAGE_KEYS.currentGameCleared]: 'true',
       [STORAGE_KEYS.drafts]: '[]',
       'tikkaat:theme': 'light',
     });

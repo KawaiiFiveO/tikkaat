@@ -3,6 +3,10 @@ import { CipherTool } from './CipherTool';
 import { Button, Dialog } from './ui';
 
 interface SettingsMenuProps {
+  /** Title of the game on the Continue card, or null when there isn't one. */
+  currentGameTitle: string | null;
+  /** Removes the current game from the Continue card. */
+  onClearCurrentGame: () => void;
   /** Number of saved games (including the most recently played game on the Continue card). */
   savedGameCount: number;
   /** Deletes every saved game and all puzzle progress. */
@@ -16,6 +20,8 @@ interface SettingsMenuProps {
 }
 
 export function SettingsMenu({
+  currentGameTitle,
+  onClearCurrentGame,
   savedGameCount,
   onDeleteAllGames,
   draftCount,
@@ -24,6 +30,7 @@ export function SettingsMenu({
 }: SettingsMenuProps) {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [currentCleared, setCurrentCleared] = useState(false);
   const [confirmingGames, setConfirmingGames] = useState(false);
   const [gamesCleared, setGamesCleared] = useState(false);
   const [confirmingDraft, setConfirmingDraft] = useState(false);
@@ -32,6 +39,7 @@ export function SettingsMenu({
   const close = () => {
     setOpen(false);
     setConfirming(false);
+    setCurrentCleared(false);
     setConfirmingGames(false);
     setGamesCleared(false);
     setConfirmingDraft(false);
@@ -45,6 +53,34 @@ export function SettingsMenu({
         <span className="max-sm:hidden">Settings</span>
       </Button>
       <Dialog open={open} onClose={close} title="Settings">
+        <section>
+          <h3 className="font-semibold">Current game</h3>
+          <p className="mt-1 text-sm text-ink-muted" role="status">
+            {currentGameTitle ? (
+              <>
+                Remove <strong className="text-ink">{currentGameTitle}</strong> from the top of the home screen. If
+                you've started it, it stays in Saved games with your progress.
+              </>
+            ) : currentCleared ? (
+              'Cleared the current game.'
+            ) : (
+              'There is no current game.'
+            )}
+          </p>
+          <Button
+            className="mt-3"
+            disabled={!currentGameTitle}
+            onClick={() => {
+              onClearCurrentGame();
+              setCurrentCleared(true);
+            }}
+          >
+            Clear current game
+          </Button>
+        </section>
+
+        <hr className="rule my-5" />
+
         <section>
           <h3 className="font-semibold">Saved games</h3>
           <p className="mt-1 text-sm text-ink-muted" role="status">

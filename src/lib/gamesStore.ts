@@ -16,6 +16,7 @@ import type { Puzzle } from './types';
  * A game is "started" once the player solves a rung, uses a hint, or saves it for later (see
  * markGameStarted), and stays started after a reset. Only the most recently played game may be unstarted (it's on the Continue
  * card). Recording a new game prunes any other unstarted game, so peeked-at puzzles don't pile up.
+ * Clearing the current game (clearCurrentGame) hides the Continue card until a game is opened again.
  * Every function takes an optional Storage for tests.
  */
 
@@ -156,6 +157,7 @@ export function recordGamePlayed(loaded: LoadedPuzzle, storage?: Storage, now: D
     else forgetGame(entry.id, storage);
   }
   writeStorage(STORAGE_KEYS.game(id), loaded.source, storage);
+  removeStorage(STORAGE_KEYS.currentGameCleared, storage);
   const { puzzle } = loaded;
   // Keep an existing started mark; progress saved before the mark existed also counts.
   const started =
@@ -200,11 +202,32 @@ export function deleteGame(id: string, storage?: Storage): GameEntry[] {
   );
 }
 
+/** Whether the Continue card was cleared (see clearCurrentGame). Opening any game shows it again. */
+export function isCurrentGameCleared(storage?: Storage): boolean {
+  return readStorage(STORAGE_KEYS.currentGameCleared, storage) === true;
+}
+
+/**
+ * Removes the most recently played game from the Continue card until a game is opened again. A kept
+ * game stays in the saved games list with its progress; an unstarted one was only kept for the
+ * Continue card, so it's deleted. Returns the updated list.
+ */
+export function clearCurrentGame(storage?: Storage): GameEntry[] {
+  writeStorage(STORAGE_KEYS.currentGameCleared, true, storage);
+  const entries = readEntries(storage);
+  const current = entries[0];
+  if (!current) return entries;
+  const game = loadEntry(current, storage);
+  if (game && isKeptGame(game)) return entries;
+  return deleteGame(current.id, storage);
+}
+
 /** Deletes every saved game and all puzzle progress (including progress with no saved game). */
 export function deleteAllGames(storage?: Storage): void {
   removeKeysWithPrefix(STORAGE_KEYS.game(''), storage);
   removeKeysWithPrefix(STORAGE_KEYS.progress(''), storage);
   removeStorage(STORAGE_KEYS.games, storage);
+  removeStorage(STORAGE_KEYS.currentGameCleared, storage);
   removeStorage(STORAGE_KEYS.legacyActive, storage);
 }
 
