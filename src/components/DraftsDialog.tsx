@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { draftDisplayName, type DraftSummary } from '../lib/draftStore';
+import { formatDateTime } from '../lib/format';
 import { Button, Dialog } from './ui';
 
 interface DraftsDialogProps {
@@ -17,13 +18,6 @@ interface DraftsDialogProps {
   currentLabel?: string;
   /** Show Open for the current draft too (e.g. from the home screen, where it isn't open yet). */
   allowOpenCurrent?: boolean;
-}
-
-function formatEdited(iso: string): string {
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime())
-    ? ''
-    : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 export function DraftsDialog({
@@ -80,7 +74,7 @@ export function DraftsDialog({
                     <div className="text-xs text-ink-muted">
                       <span className="uppercase">{summary.startWord || '…'}</span> →{' '}
                       <span className="uppercase">{summary.endWord || '…'}</span> · Edited{' '}
-                      {formatEdited(summary.updatedAt)}
+                      {formatDateTime(summary.updatedAt)}
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-1">

@@ -1,5 +1,3 @@
-import { hashString } from './hash';
-
 /** Every Tikkaat storage key starts with this (including tikkaat:theme and tikkaat:color). */
 export const STORAGE_PREFIX = 'tikkaat:';
 
@@ -12,10 +10,14 @@ export const STORAGE_KEYS = {
   currentDraft: 'tikkaat:currentDraft',
   /** One draft's content. */
   draft: (id: string) => `tikkaat:draft:${id}`,
-  /** Original source of the single active (resumable) puzzle. */
-  active: 'tikkaat:active',
-  /** Progress for a puzzle, keyed by a hash of its share string. */
-  progress: (shareCode: string) => `tikkaat:progress:${hashString(shareCode)}`,
+  /** The single active puzzle saved by earlier versions; migrated into the saved games list on load. */
+  legacyActive: 'tikkaat:active',
+  /** List of saved games. */
+  games: 'tikkaat:games',
+  /** One saved game's original puzzle source. */
+  game: (puzzleId: string) => `tikkaat:game:${puzzleId}`,
+  /** Progress for a puzzle, keyed by its puzzle id (a hash of its share string; see gamesStore). */
+  progress: (puzzleId: string) => `tikkaat:progress:${puzzleId}`,
 } as const;
 
 // Every helper takes an optional Storage (for tests) and falls back to localStorage. Accessing

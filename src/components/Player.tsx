@@ -19,13 +19,8 @@ import {
   type Direction,
   type GameProgress,
 } from '../lib/game';
-import {
-  sourceFileName,
-  sourceFileText,
-  sourceShareCode,
-  toShareString,
-  type PuzzleSource,
-} from '../lib/serialize';
+import { puzzleId } from '../lib/gamesStore';
+import { sourceFileName, sourceFileText, sourceShareCode, type PuzzleSource } from '../lib/serialize';
 import { enumeration, enumerationLabel } from '../lib/normalize';
 import { readStorage, STORAGE_KEYS, writeStorage } from '../lib/storage';
 import { ladderWords, type Puzzle } from '../lib/types';
@@ -61,7 +56,7 @@ export function Player({ puzzle, mode, source, onExit }: PlayerProps) {
   );
   // Playtest progress isn't saved: every edit in the builder makes a new puzzle anyway.
   const storageKey = useMemo(
-    () => (mode === 'shared' ? STORAGE_KEYS.progress(toShareString(puzzle)) : null),
+    () => (mode === 'shared' ? STORAGE_KEYS.progress(puzzleId(puzzle)) : null),
     [puzzle, mode],
   );
   const [progress, setProgress] = useState<GameProgress>(

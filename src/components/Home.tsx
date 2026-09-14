@@ -1,21 +1,24 @@
-import { displayScore, isComplete, PERFECT_SCORE, solvedCount, type GameProgress } from '../lib/game';
 import { useState } from 'react';
 import type { DraftSummary } from '../lib/draftStore';
+import { displayScore, isComplete, PERFECT_SCORE, solvedCount } from '../lib/game';
+import type { SavedGame } from '../lib/gamesStore';
 import type { LoadedPuzzle } from '../lib/serialize';
 import type { Puzzle } from '../lib/types';
 import { DraftsDialog } from './DraftsDialog';
 import { ImportPanel } from './ImportPanel';
+import { SavedGamesDialog } from './SavedGamesDialog';
 import { Button, Card } from './ui';
-
-export interface ActiveGame extends LoadedPuzzle {
-  progress: GameProgress;
-}
 
 interface HomeProps {
   linkError: string | null;
-  activeGame: ActiveGame | null;
+  /** The most recently played game, shown on the Continue card even without progress. */
+  currentGame: SavedGame | null;
+  /** Games with progress (a solve or hint), most recently played first. */
+  savedGames: SavedGame[];
+  onContinue: (game: SavedGame) => void;
+  /** Deletes a saved game and its progress. */
+  onDeleteGame: (id: string) => void;
   hasDraft: boolean;
-  onContinue: (game: ActiveGame) => void;
   onBuild: () => void;
   onPlayExample: () => void;
   onPlay: (loaded: LoadedPuzzle) => void;
@@ -34,9 +37,11 @@ interface HomeProps {
 
 export function Home({
   linkError,
-  activeGame,
-  hasDraft,
+  currentGame,
+  savedGames,
   onContinue,
+  onDeleteGame,
+  hasDraft,
   onBuild,
   onPlayExample,
   onPlay,
@@ -49,6 +54,7 @@ export function Home({
   onNewDraft,
 }: HomeProps) {
   const [showDrafts, setShowDrafts] = useState(false);
+  const [showGames, setShowGames] = useState(false);
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
@@ -57,7 +63,7 @@ export function Home({
           Couldn't open the puzzle link. {linkError}
         </div>
       )}
-      {activeGame && <ContinueCard game={activeGame} onContinue={onContinue} />}
+      {currentGame && <ContinueCard game={currentGame} onContinue={onContinue} />}
       <Card>
         <h1 className="text-3xl font-bold">Tikkaat</h1>
         <p className="mt-2 text-ink-muted">
@@ -65,14 +71,24 @@ export function Home({
           using the list of clues.
         </p>
         <div className="mt-5 flex flex-wrap gap-2">
-          <Button variant={activeGame ? 'secondary' : 'primary'} onClick={onBuild}>
+          <Button variant={currentGame ? 'secondary' : 'primary'} onClick={onBuild}>
             {hasDraft ? 'Continue building' : 'Build a puzzle'}
           </Button>
           <Button onClick={onPlayExample}>Play an example</Button>
+          {savedGames.length > 0 && (
+            <Button onClick={() => setShowGames(true)}>Saved games ({savedGames.length})</Button>
+          )}
           {drafts.length > 0 && <Button onClick={() => setShowDrafts(true)}>Drafts ({drafts.length})</Button>}
         </div>
       </Card>
       <ImportPanel onPlay={onPlay} onEdit={onEdit} />
+      <SavedGamesDialog
+        open={showGames}
+        onClose={() => setShowGames(false)}
+        games={savedGames}
+        onContinue={onContinue}
+        onDelete={onDeleteGame}
+      />
       <DraftsDialog
         open={showDrafts}
         onClose={() => setShowDrafts(false)}
@@ -89,7 +105,7 @@ export function Home({
   );
 }
 
-function ContinueCard({ game, onContinue }: { game: ActiveGame; onContinue: (game: ActiveGame) => void }) {
+function ContinueCard({ game, onContinue }: { game: SavedGame; onContinue: (game: SavedGame) => void }) {
   const { puzzle, progress } = game;
   const complete = isComplete(progress);
   const solved = solvedCount(progress);

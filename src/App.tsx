@@ -3,11 +3,10 @@ import { Builder } from './components/Builder';
 import { ColorThemePicker } from './components/ColorThemePicker';
 import { Footer } from './components/Footer';
 import { LadderIcon } from './components/LadderIcon';
-import { Home, type ActiveGame } from './components/Home';
+import { Home } from './components/Home';
 import { Player, type PlayMode } from './components/Player';
 import { SettingsMenu } from './components/SettingsMenu';
 import { ThemeToggle } from './components/ThemeToggle';
-import { loadActiveSource, preferActiveSource, restoreActiveSource } from './lib/activePuzzle';
 import { pageUrl, setUrlHash } from './lib/browser';
 import { createDraft, isDraftEmpty } from './lib/draft';
 import {
@@ -22,17 +21,25 @@ import {
   type DraftSummary,
 } from './lib/draftStore';
 import { EXAMPLE_PUZZLE } from './lib/examplePuzzle';
-import { createProgress, restoreProgress } from './lib/game';
+import { hasProgress } from './lib/game';
+import {
+  deleteAllGames,
+  deleteGame,
+  listSavedGames,
+  openSavedGames,
+  preferStoredSource,
+  recordGamePlayed,
+  type GameEntry,
+} from './lib/gamesStore';
 import {
   importErrorMessage,
   loadShareString,
   sourceFromPuzzle,
   sourceShareCode,
-  toShareString,
   type LoadedPuzzle,
   type PuzzleSource,
 } from './lib/serialize';
-import { clearSiteData, readStorage, removeStorage, STORAGE_KEYS, writeStorage } from './lib/storage';
+import { clearSiteData } from './lib/storage';
 import type { Puzzle } from './lib/types';
 import { normalizePuzzle } from './lib/validate';
 
@@ -59,19 +66,19 @@ function readHash(): { loaded: LoadedPuzzle | null; error: string | null } {
 
 export function App() {
   const [initial] = useState(() => {
-    const active = restoreActiveSource(readStorage(STORAGE_KEYS.active));
+    const games = openSavedGames();
     const { loaded, error } = readHash();
-    return { active, loaded: loaded && preferActiveSource(loaded, active), error };
+    return { games, loaded: loaded && preferStoredSource(loaded), error };
   });
   const [view, setView] = useState<View>(() =>
     initial.loaded ? playView(initial.loaded.puzzle, 'shared', initial.loaded.source) : { name: 'home' },
   );
   const [linkError, setLinkError] = useState(initial.error);
+  const [games, setGames] = useState<GameEntry[]>(initial.games);
   const [initialDraft] = useState(() => openInitialDraft());
   const [draftId, setDraftId] = useState(initialDraft.id);
   const [draft, setDraft] = useState<Puzzle>(initialDraft.draft);
   const [drafts, setDrafts] = useState<DraftSummary[]>(initialDraft.drafts);
-  const [activeSource, setActiveSource] = useState<PuzzleSource | null>(initial.active);
 
   // Autosave the open draft (empty drafts aren't stored) and remember which draft is open.
   useEffect(() => {
@@ -79,14 +86,13 @@ export function App() {
     writeCurrentDraftId(draftId);
   }, [draftId, draft]);
 
-  // A shared puzzle being played lives in the URL hash (so reloading keeps it)
-  // and becomes the single active puzzle, stored as its original source.
+  // A shared puzzle being played lives in the URL hash (so reloading keeps it) and is recorded
+  // as the most recently played saved game, stored as its original source.
   useEffect(() => {
     const source = view.name === 'play' ? view.source : null;
     setUrlHash(source ? sourceShareCode(source) : null);
-    if (source) {
-      setActiveSource(source);
-      writeStorage(STORAGE_KEYS.active, source);
+    if (view.name === 'play' && view.source) {
+      setGames(recordGamePlayed({ puzzle: view.puzzle, source: view.source }));
     }
     window.scrollTo(0, 0);
   }, [view]);
@@ -95,7 +101,7 @@ export function App() {
     const handleHashChange = () => {
       const { loaded, error } = readHash();
       if (loaded) {
-        const resolved = preferActiveSource(loaded, activeSource);
+        const resolved = preferStoredSource(loaded);
         setLinkError(null);
         setView(playView(resolved.puzzle, 'shared', resolved.source));
       } else if (error) {
@@ -105,27 +111,19 @@ export function App() {
     };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [activeSource]);
+  }, []);
 
-  // Re-read when returning home so the progress summary is current.
-  const activeGame = useMemo((): ActiveGame | null => {
-    if (view.name !== 'home' || !activeSource) return null;
-    const loaded = loadActiveSource(activeSource);
-    if (!loaded) return null;
-    const saved = readStorage(STORAGE_KEYS.progress(toShareString(loaded.puzzle)));
-    return { ...loaded, progress: restoreProgress(saved, loaded.puzzle) ?? createProgress(loaded.puzzle) };
-  }, [view, activeSource]);
+  // Re-read on returning home (or after the list changes) so progress summaries are current.
+  const savedGames = useMemo(() => (view.name === 'home' ? listSavedGames() : []), [view, games]);
+  const gamesWithProgress = useMemo(() => savedGames.filter((game) => hasProgress(game.progress)), [savedGames]);
 
-  const activeTitle = useMemo(
-    () => (activeSource ? (loadActiveSource(activeSource)?.puzzle.metadata.title ?? null) : null),
-    [activeSource],
-  );
+  const deleteSavedGame = (id: string) => setGames(deleteGame(id));
 
-  // Forget the resumable game but keep its saved progress. If it's being played, go home,
-  // since playing a shared puzzle would immediately make it active again.
-  const clearCurrentGame = () => {
-    removeStorage(STORAGE_KEYS.active);
-    setActiveSource(null);
+  // Delete every saved game and all progress. If a shared puzzle is being played, go home,
+  // since staying would record it (and its progress) again.
+  const deleteAllSavedGames = () => {
+    deleteAllGames();
+    setGames([]);
     if (view.name === 'play' && view.mode === 'shared') setView({ name: 'home' });
   };
 
@@ -204,8 +202,8 @@ export function App() {
             <ColorThemePicker />
             <ThemeToggle />
             <SettingsMenu
-              activeTitle={activeTitle}
-              onClearCurrentGame={clearCurrentGame}
+              savedGameCount={games.length}
+              onDeleteAllGames={deleteAllSavedGames}
               draftCount={drafts.length}
               onDeleteAllDrafts={deleteAllSavedDrafts}
               onClearAllData={clearAllData}
@@ -218,9 +216,11 @@ export function App() {
         {view.name === 'home' && (
           <Home
             linkError={linkError}
-            activeGame={activeGame}
-            hasDraft={!isDraftEmpty(draft) || drafts.length > 0}
+            currentGame={savedGames[0] ?? null}
+            savedGames={gamesWithProgress}
             onContinue={(game) => play(game.puzzle, 'shared', game.source)}
+            onDeleteGame={deleteSavedGame}
+            hasDraft={!isDraftEmpty(draft) || drafts.length > 0}
             onBuild={() => setView({ name: 'build' })}
             onPlayExample={playExample}
             onPlay={(loaded) => play(loaded.puzzle, 'shared', loaded.source)}

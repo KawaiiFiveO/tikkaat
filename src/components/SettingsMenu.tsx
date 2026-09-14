@@ -3,9 +3,10 @@ import { CipherTool } from './CipherTool';
 import { Button, Dialog } from './ui';
 
 interface SettingsMenuProps {
-  /** Title of the current (resumable) game, or null when there isn't one. */
-  activeTitle: string | null;
-  onClearCurrentGame: () => void;
+  /** Number of saved games (including the most recently played game on the Continue card). */
+  savedGameCount: number;
+  /** Deletes every saved game and all puzzle progress. */
+  onDeleteAllGames: () => void;
   /** Number of saved (non-empty) builder drafts. */
   draftCount: number;
   /** Deletes every draft and opens a new empty one. */
@@ -15,22 +16,24 @@ interface SettingsMenuProps {
 }
 
 export function SettingsMenu({
-  activeTitle,
-  onClearCurrentGame,
+  savedGameCount,
+  onDeleteAllGames,
   draftCount,
   onDeleteAllDrafts,
   onClearAllData,
 }: SettingsMenuProps) {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const [clearedTitle, setClearedTitle] = useState<string | null>(null);
+  const [confirmingGames, setConfirmingGames] = useState(false);
+  const [gamesCleared, setGamesCleared] = useState(false);
   const [confirmingDraft, setConfirmingDraft] = useState(false);
   const [draftCleared, setDraftCleared] = useState(false);
 
   const close = () => {
     setOpen(false);
     setConfirming(false);
-    setClearedTitle(null);
+    setConfirmingGames(false);
+    setGamesCleared(false);
     setConfirmingDraft(false);
     setDraftCleared(false);
   };
@@ -43,31 +46,45 @@ export function SettingsMenu({
       </Button>
       <Dialog open={open} onClose={close} title="Settings">
         <section>
-          <h3 className="font-semibold">Current game</h3>
+          <h3 className="font-semibold">Saved games</h3>
           <p className="mt-1 text-sm text-ink-muted" role="status">
-            {activeTitle ? (
-              <>
-                Remove <strong className="text-ink">{activeTitle}</strong> from “Continue playing”. Your progress is
-                kept if you open that puzzle again.
-              </>
-            ) : clearedTitle ? (
-              <>
-                Cleared the current game.
-              </>
-            ) : (
-              'There is no current game.'
-            )}
+            {savedGameCount > 0
+              ? 'Delete every saved game and all puzzle progress, including the game on the “Continue playing” card.'
+              : gamesCleared
+                ? 'Deleted all saved games.'
+                : 'There are no saved games.'}
           </p>
-          <Button
-            className="mt-3"
-            disabled={!activeTitle}
-            onClick={() => {
-              setClearedTitle(activeTitle);
-              onClearCurrentGame();
-            }}
-          >
-            Clear current game
-          </Button>
+          {confirmingGames && savedGameCount > 0 ? (
+            <div role="alert" className="mt-3 rounded-lg border border-danger/50 bg-danger-soft p-3">
+              <p className="text-sm font-semibold">Delete all saved games and their progress? This can't be undone.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  variant="danger"
+                  onClick={() => {
+                    onDeleteAllGames();
+                    setConfirmingGames(false);
+                    setGamesCleared(true);
+                  }}
+                >
+                  Yes, delete all saved games
+                </Button>
+                <Button autoFocus onClick={() => setConfirmingGames(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              className="mt-3"
+              disabled={savedGameCount === 0}
+              onClick={() => {
+                setGamesCleared(false);
+                setConfirmingGames(true);
+              }}
+            >
+              Delete all saved games…
+            </Button>
+          )}
         </section>
 
         <hr className="rule my-5" />
@@ -119,8 +136,8 @@ export function SettingsMenu({
         <section>
           <h3 className="font-semibold">Site data</h3>
           <p className="mt-1 text-sm text-ink-muted">
-            Delete everything Tikkaat has saved in this browser: progress on every puzzle, the current game, your
-            builder drafts, and your theme settings.
+            Delete everything Tikkaat has saved in this browser: your saved games and progress, your builder drafts,
+            and your theme settings.
           </p>
           {confirming ? (
             <div role="alert" className="mt-3 rounded-lg border border-danger/50 bg-danger-soft p-3">
