@@ -8,7 +8,7 @@ export function ClueText({ display }: { display: ClueDisplay }) {
         if (segment.kind === 'text') return <span key={i}>{segment.text}</span>;
         if (segment.kind === 'word') {
           return (
-            <strong key={i} className="font-semibold tracking-wide">
+            <strong key={i} className="clue-word">
               {segment.text}
             </strong>
           );
@@ -24,7 +24,7 @@ export function ClueText({ display }: { display: ClueDisplay }) {
           {' '}
           <span aria-hidden="true">→</span>
           <span className="sr-only">gives</span>{' '}
-          <strong className="font-semibold tracking-wide">{display.result}</strong>
+          <strong className="clue-result">{display.result}</strong>
         </>
       )}
     </>
