@@ -93,7 +93,7 @@ export function SettingsMenu({
           <h3 className="font-semibold">Drafts</h3>
           <p className="mt-1 text-sm text-ink-muted" role="status">
             {draftCount > 0
-              ? `Delete all ${draftCount} saved ${draftCount === 1 ? 'draft' : 'drafts'} and start the builder over with an empty puzzle.`
+              ? `Delete all ${draftCount} saved draft(s) and start the builder over with an empty puzzle.`
               : draftCleared
                 ? 'Deleted all drafts.'
                 : 'There are no saved drafts.'}

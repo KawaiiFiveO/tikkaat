@@ -7,7 +7,7 @@ export const COLOR_THEMES = [
   { id: 'lubuntu', name: 'Lubuntu', description: 'Classic Lubuntu blue' },
   { id: 'mint', name: 'Mint', description: 'Linux Mint green' },
   { id: 'gentoo', name: 'Gentoo', description: 'Gentoo lavender purple' },
-  { id: 'warty', name: 'Ubuntu', description: '4.10 “Warty Warthog” orange' },
+  { id: 'warty', name: 'Ubuntu', description: 'Iconic Ubuntu orange' },
 ] as const;
 
 export type ColorTheme = (typeof COLOR_THEMES)[number]['id'];

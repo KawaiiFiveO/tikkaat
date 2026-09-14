@@ -25,7 +25,7 @@ export function SavedGamesDialog({ open, onClose, games, onContinue, onDelete }:
   return (
     <Dialog open={open} onClose={close} title="Saved games">
       <p className="text-sm text-ink-muted">
-        Puzzles you've solved a rung or used a hint on in this browser, most recently played first.
+        Puzzles you've saved in this browser, most recently played first.
       </p>
 
       {games.length === 0 ? (
