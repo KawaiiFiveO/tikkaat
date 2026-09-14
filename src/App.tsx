@@ -21,10 +21,10 @@ import {
   type DraftSummary,
 } from './lib/draftStore';
 import { EXAMPLE_PUZZLE } from './lib/examplePuzzle';
-import { hasProgress } from './lib/game';
 import {
   deleteAllGames,
   deleteGame,
+  isKeptGame,
   listSavedGames,
   openSavedGames,
   preferStoredSource,
@@ -115,7 +115,7 @@ export function App() {
 
   // Re-read on returning home (or after the list changes) so progress summaries are current.
   const savedGames = useMemo(() => (view.name === 'home' ? listSavedGames() : []), [view, games]);
-  const gamesWithProgress = useMemo(() => savedGames.filter((game) => hasProgress(game.progress)), [savedGames]);
+  const keptGames = useMemo(() => savedGames.filter(isKeptGame), [savedGames]);
 
   const deleteSavedGame = (id: string) => setGames(deleteGame(id));
 
@@ -217,7 +217,7 @@ export function App() {
           <Home
             linkError={linkError}
             currentGame={savedGames[0] ?? null}
-            savedGames={gamesWithProgress}
+            savedGames={keptGames}
             onContinue={(game) => play(game.puzzle, 'shared', game.source)}
             onDeleteGame={deleteSavedGame}
             hasDraft={!isDraftEmpty(draft) || drafts.length > 0}

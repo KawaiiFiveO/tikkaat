@@ -13,8 +13,9 @@ import type { Puzzle } from './types';
  * <id> is puzzleId(): a hash of the canonical share string, so every way of opening the same
  * puzzle (link, code, file) shares one entry and one progress record.
  *
- * Only the most recently played game may lack progress (it's on the Continue card). Recording a
- * new game prunes any other game without progress, so peeked-at puzzles don't pile up.
+ * A game is "started" once the player solves a rung or uses a hint (see markGameStarted), and stays
+ * started after a reset. Only the most recently played game may be unstarted (it's on the Continue
+ * card). Recording a new game prunes any other unstarted game, so peeked-at puzzles don't pile up.
  * Every function takes an optional Storage for tests.
  */
 
@@ -25,12 +26,20 @@ export interface GameEntry {
   endWord: string;
   /** ISO timestamp of when the game was last opened. */
   lastPlayed: string;
+  /** Present (true) once the player has solved a rung or used a hint; kept even after a reset. */
+  started?: true;
 }
 
 export interface SavedGame extends LoadedPuzzle {
   id: string;
   lastPlayed: string;
+  started: boolean;
   progress: GameProgress;
+}
+
+/** Whether a game belongs in the saved games list: started at some point, or has progress now. */
+export function isKeptGame(game: SavedGame): boolean {
+  return game.started || hasProgress(game.progress);
 }
 
 export function puzzleId(puzzle: Puzzle): string {
@@ -66,7 +75,8 @@ function isEntry(value: unknown): value is GameEntry {
   return (
     isRecord(value) &&
     [value.id, value.title, value.startWord, value.endWord, value.lastPlayed].every(isString) &&
-    value.id !== ''
+    value.id !== '' &&
+    (value.started === undefined || value.started === true)
   );
 }
 
@@ -94,7 +104,13 @@ function loadEntry(entry: GameEntry, storage?: Storage): SavedGame | null {
   const source = sourceShape(readStorage(STORAGE_KEYS.game(entry.id), storage));
   const loaded = source && loadSource(source);
   if (!loaded) return null;
-  return { ...loaded, id: entry.id, lastPlayed: entry.lastPlayed, progress: loadProgress(loaded.puzzle, storage) };
+  return {
+    ...loaded,
+    id: entry.id,
+    lastPlayed: entry.lastPlayed,
+    started: entry.started === true,
+    progress: loadProgress(loaded.puzzle, storage),
+  };
 }
 
 /** Every saved game that still loads, most recently played first. */
@@ -111,27 +127,46 @@ function forgetGame(id: string, storage?: Storage): void {
 
 /**
  * Records an opened shared puzzle as the most recently played game (storing its original
- * source) and prunes any other game without progress. Returns the updated list.
+ * source) and prunes any other unstarted game. Returns the updated list.
  */
 export function recordGamePlayed(loaded: LoadedPuzzle, storage?: Storage, now: Date = new Date()): GameEntry[] {
   const id = puzzleId(loaded.puzzle);
+  const entries = readEntries(storage);
   const others: GameEntry[] = [];
-  for (const entry of readEntries(storage)) {
+  for (const entry of entries) {
     if (entry.id === id) continue;
     const game = loadEntry(entry, storage);
-    if (game && hasProgress(game.progress)) others.push(entry);
+    if (game && isKeptGame(game)) others.push(entry);
     else forgetGame(entry.id, storage);
   }
   writeStorage(STORAGE_KEYS.game(id), loaded.source, storage);
   const { puzzle } = loaded;
+  // Keep an existing started mark; progress saved before the mark existed also counts.
+  const started =
+    entries.some((entry) => entry.id === id && entry.started) || hasProgress(loadProgress(puzzle, storage));
   const entry: GameEntry = {
     id,
     title: puzzle.metadata.title,
     startWord: puzzle.startWord,
     endWord: puzzle.endWord,
     lastPlayed: now.toISOString(),
+    ...(started ? { started: true as const } : {}),
   };
   return writeEntries([entry, ...others], storage);
+}
+
+/**
+ * Marks a saved game as started (called when the player solves a rung or uses a hint), so it
+ * stays in the list even after a reset. Returns the updated list, or null if nothing changed.
+ */
+export function markGameStarted(id: string, storage?: Storage): GameEntry[] | null {
+  const entries = readEntries(storage);
+  const entry = entries.find((candidate) => candidate.id === id);
+  if (!entry || entry.started) return null;
+  return writeEntries(
+    entries.map((candidate) => (candidate.id === id ? { ...candidate, started: true as const } : candidate)),
+    storage,
+  );
 }
 
 /** Deletes a saved game and its progress. */

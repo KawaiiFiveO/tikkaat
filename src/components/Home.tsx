@@ -13,7 +13,7 @@ interface HomeProps {
   linkError: string | null;
   /** The most recently played game, shown on the Continue card even without progress. */
   currentGame: SavedGame | null;
-  /** Games with progress (a solve or hint), most recently played first. */
+  /** Started games (a solve or hint at some point, even if reset since), most recently played first. */
   savedGames: SavedGame[];
   onContinue: (game: SavedGame) => void;
   /** Deletes a saved game and its progress. */

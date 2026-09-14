@@ -19,7 +19,7 @@ import {
   type Direction,
   type GameProgress,
 } from '../lib/game';
-import { puzzleId } from '../lib/gamesStore';
+import { markGameStarted, puzzleId } from '../lib/gamesStore';
 import { sourceFileName, sourceFileText, sourceShareCode, type PuzzleSource } from '../lib/serialize';
 import { enumeration, enumerationLabel } from '../lib/normalize';
 import { readStorage, STORAGE_KEYS, writeStorage } from '../lib/storage';
@@ -55,10 +55,8 @@ export function Player({ puzzle, mode, source, onExit }: PlayerProps) {
     [source, puzzle],
   );
   // Playtest progress isn't saved: every edit in the builder makes a new puzzle anyway.
-  const storageKey = useMemo(
-    () => (mode === 'shared' ? STORAGE_KEYS.progress(puzzleId(puzzle)) : null),
-    [puzzle, mode],
-  );
+  const gameId = useMemo(() => (mode === 'shared' ? puzzleId(puzzle) : null), [puzzle, mode]);
+  const storageKey = gameId ? STORAGE_KEYS.progress(gameId) : null;
   const [progress, setProgress] = useState<GameProgress>(
     () => (storageKey ? restoreProgress(readStorage(storageKey), puzzle) : null) ?? createProgress(puzzle),
   );
@@ -66,9 +64,13 @@ export function Player({ puzzle, mode, source, onExit }: PlayerProps) {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [shaking, setShaking] = useState(false);
 
+  // Save progress; the first solve or hint marks the saved game as started, so it stays in the
+  // saved games list even after a reset.
   useEffect(() => {
-    if (storageKey) writeStorage(storageKey, progress);
-  }, [storageKey, progress]);
+    if (!gameId || !storageKey) return;
+    writeStorage(storageKey, progress);
+    if (hasProgress(progress)) markGameStarted(gameId);
+  }, [gameId, storageKey, progress]);
 
   const words = ladderWords(puzzle);
   const letterCounts = useMemo(() => puzzle.rungs.map(enumeration), [puzzle]);

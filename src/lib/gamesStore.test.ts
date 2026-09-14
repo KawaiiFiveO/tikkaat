@@ -4,7 +4,9 @@ import { applyHint, createProgress } from './game';
 import {
   deleteAllGames,
   deleteGame,
+  isKeptGame,
   listSavedGames,
+  markGameStarted,
   openSavedGames,
   preferStoredSource,
   puzzleId,
@@ -84,6 +86,50 @@ describe('recordGamePlayed', () => {
     recordGamePlayed(opened(B), storage, T3);
     expect(titles(storage)).toEqual(['Ladder B', 'Ladder C']);
     expect(storageKeys(storage).some((key) => key.endsWith(puzzleId(A)))).toBe(false);
+  });
+});
+
+describe('started games', () => {
+  it('keeps a started game in the list after a reset, even when another game is opened', () => {
+    const storage = createMemoryStorage();
+    recordGamePlayed(opened(A), storage, T1);
+    addProgress(A, storage);
+    markGameStarted(puzzleId(A), storage);
+    writeStorage(STORAGE_KEYS.progress(puzzleId(A)), createProgress(A), storage); // Reset
+
+    recordGamePlayed(opened(B), storage, T2);
+    const gameA = listSavedGames(storage).find((game) => game.puzzle.metadata.title === 'Ladder A');
+    expect(gameA?.started).toBe(true);
+    expect(gameA && isKeptGame(gameA)).toBe(true);
+    expect(gameA?.progress.solved.some(Boolean)).toBe(false);
+  });
+
+  it('keeps the started mark when a reset game is replayed', () => {
+    const storage = createMemoryStorage();
+    recordGamePlayed(opened(A), storage, T1);
+    markGameStarted(puzzleId(A), storage);
+    expect(recordGamePlayed(opened(A), storage, T2)[0]?.started).toBe(true);
+  });
+
+  it('counts progress saved before the started mark existed', () => {
+    const storage = createMemoryStorage();
+    addProgress(A, storage);
+    expect(recordGamePlayed(opened(A), storage, T1)[0]?.started).toBe(true);
+  });
+
+  it('only marks listed, unstarted games', () => {
+    const storage = createMemoryStorage();
+    expect(markGameStarted('missing', storage)).toBeNull();
+    recordGamePlayed(opened(A), storage, T1);
+    expect(markGameStarted(puzzleId(A), storage)?.[0]?.started).toBe(true);
+    expect(markGameStarted(puzzleId(A), storage)).toBeNull();
+  });
+
+  it('treats an unstarted game without progress as not kept', () => {
+    const storage = createMemoryStorage();
+    recordGamePlayed(opened(A), storage, T1);
+    const game = listSavedGames(storage)[0];
+    expect(game && isKeptGame(game)).toBe(false);
   });
 });
 
