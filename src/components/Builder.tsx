@@ -1,8 +1,8 @@
 import { Fragment, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { insertRung, removeRung, reshuffleClues, suggestTitle } from '../lib/draft';
-import { fillClue, type ClueDisplay } from '../lib/game';
+import { fillClue, showsNextInline, type ClueDisplay } from '../lib/game';
 import { codePointLength, normalizeWord } from '../lib/normalize';
-import { ladderWords, PLACEHOLDER, type Puzzle, type PuzzleMetadata } from '../lib/types';
+import { ladderWords, NEXT_PLACEHOLDER, PLACEHOLDER, type Puzzle, type PuzzleMetadata } from '../lib/types';
 import { LIMITS, normalizePuzzle, validatePuzzle } from '../lib/validate';
 import { ClueText } from './ClueText';
 import { SharePanel } from './SharePanel';
@@ -76,7 +76,8 @@ export function Builder({
           </div>
           <p className="mt-1 text-sm text-ink-muted">
             Enter the ladder from top to bottom with one clue per step. In each clue, write {PLACEHOLDER} where the
-            word being changed goes.
+            word being changed goes. Write {NEXT_PLACEHOLDER} too if the answer belongs inside the clue, as in
+            “{PLACEHOLDER} {NEXT_PLACEHOLDER}, 20th century actor”; otherwise it's shown after an arrow.
           </p>
         </Card>
 
@@ -340,24 +341,32 @@ function ClueEditor({ step, clue, from, to, onChange, onInsertRung, errors }: Cl
   const id = useId();
   const textarea = useRef<HTMLTextAreaElement>(null);
 
-  function insertPlaceholder() {
+  function insertPlaceholder(token: string) {
     const el = textarea.current;
     const start = el?.selectionStart ?? clue.length;
     const end = el?.selectionEnd ?? clue.length;
-    const next = clue.slice(0, start) + PLACEHOLDER + clue.slice(end);
+    const next = clue.slice(0, start) + token + clue.slice(end);
     if (next.length > LIMITS.clueMaxLength) return;
     onChange(next);
     requestAnimationFrame(() => {
-      const caret = start + PLACEHOLDER.length;
+      const caret = start + token.length;
       el?.focus();
       el?.setSelectionRange(caret, caret);
     });
   }
 
+  const trimmed = clue.trim();
   const preview: ClueDisplay | null =
-    clue.trim() === ''
+    trimmed === ''
       ? null
-      : { step, segments: fillClue(clue.trim(), { kind: 'word', text: from || '…' }), result: to || '…' };
+      : {
+          step,
+          segments: fillClue(trimmed, {
+            word: { kind: 'word', text: from || '…' },
+            next: { kind: 'result', text: to || '…' },
+          }),
+          result: showsNextInline(trimmed) ? null : to || '…',
+        };
 
   return (
     <div className="my-1 ml-4 border-l-2 border-dashed border-line py-2 pl-4">
@@ -381,8 +390,11 @@ function ClueEditor({ step, clue, from, to, onChange, onInsertRung, errors }: Cl
         className={`${inputClass} mt-1 resize-y`}
       />
       <div className="mt-1 flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={insertPlaceholder}>
+        <Button size="sm" onClick={() => insertPlaceholder(PLACEHOLDER)}>
           Insert {PLACEHOLDER}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => insertPlaceholder(NEXT_PLACEHOLDER)}>
+          Insert {NEXT_PLACEHOLDER}
         </Button>
         {onInsertRung && (
           <Button size="sm" variant="ghost" onClick={onInsertRung}>

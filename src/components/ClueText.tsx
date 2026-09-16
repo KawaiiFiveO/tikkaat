@@ -13,6 +13,14 @@ export function ClueText({ display }: { display: ClueDisplay }) {
             </strong>
           );
         }
+        // The step's to-word shown inline, styled like the word after the arrow.
+        if (segment.kind === 'result') {
+          return (
+            <strong key={i} className="clue-result">
+              {segment.text}
+            </strong>
+          );
+        }
         return (
           <span key={i} className="inline-block w-[4.5em] border-b-2 border-ink-muted align-[-0.2em]">
             <span className="sr-only">blank</span>

@@ -189,6 +189,30 @@ describe('import errors', () => {
   });
 });
 
+describe('{next} clues', () => {
+  const INLINE: Puzzle = {
+    ...EXAMPLE_PUZZLE,
+    clues: [
+      '{word} becomes {next}, the opposite of cold',
+      'Change the first letter of {word} to get a tiny round mark',
+      "Change the last letter of {word} to get man's best friend",
+      '{word} {next}, a tooth on a gear',
+    ],
+  };
+
+  // {next} lives inside the clue string, so it needs no change to the save file or share code format.
+  it('round-trips through files and share strings under format version 1', () => {
+    expect(fromFileJson(toFileJson(INLINE))).toEqual(normalizePuzzle(INLINE));
+    expect(fromShareString(toShareString(INLINE))).toEqual(normalizePuzzle(INLINE));
+    expect(toSaveFile(INLINE).formatVersion).toBe(1);
+  });
+
+  it('leaves puzzles without it byte-for-byte unchanged', () => {
+    expect(toFileJson(EXAMPLE_PUZZLE)).not.toContain('{next}');
+    expect(toShareString(EXAMPLE_PUZZLE)).toBe(toShareString({ ...EXAMPLE_PUZZLE, clues: [...EXAMPLE_PUZZLE.clues] }));
+  });
+});
+
 describe('completion message', () => {
   const withMessage = (completionMessage: string): Puzzle => ({
     ...EXAMPLE_PUZZLE,

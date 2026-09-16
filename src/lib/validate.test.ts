@@ -22,6 +22,17 @@ describe('validatePuzzle', () => {
     expect(fields(withChanges({ clues }))).toEqual(['clues.1']);
   });
 
+  it('accepts {next} beside {word}, but not on its own', () => {
+    const withBoth = [...EXAMPLE_PUZZLE.clues];
+    withBoth[1] = '{word} {next}, a tiny round mark';
+    expect(fields(withChanges({ clues: withBoth }))).toEqual([]);
+
+    const nextOnly = [...EXAMPLE_PUZZLE.clues];
+    // Solving upwards asks for the from-word, so a clue that never names it is unsolvable.
+    nextOnly[1] = 'A tiny round mark: {next}';
+    expect(fields(withChanges({ clues: nextOnly }))).toEqual(['clues.1']);
+  });
+
   it('limits rung count to 20', () => {
     const rungs = Array.from({ length: 21 }, () => 'WORD');
     const clues = Array.from({ length: 22 }, () => '{word}');

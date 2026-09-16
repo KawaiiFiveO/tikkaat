@@ -766,6 +766,30 @@ body::before {
       0 0 10px var(--focus-glow);
   }
 
+  /*
+   * A clue the player has crossed off for the current step. Muted rather than faded with opacity,
+   * which would drag the .clue-word / .clue-result tints below their contrast floor. No transition:
+   * the wrong-guess shake is the only animation in the app.
+   */
+  .list-item-discarded {
+    border-style: dashed;
+    background-image: none;
+    background-color: var(--surface-muted);
+    color: var(--ink-muted);
+    box-shadow: none;
+  }
+
+  .list-item-discarded .clue-word,
+  .list-item-discarded .clue-result {
+    color: var(--ink-muted);
+    background-color: transparent;
+  }
+
+  /* The row is clickable, but the clue text itself stays selectable for copying. */
+  .clue-toggle {
+    cursor: pointer;
+  }
+
   .list-item-used {
     border-style: dashed;
     background-image: none;

@@ -1,9 +1,10 @@
-import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import {
   activeRung,
   applyHint,
   bottommostUnsolved,
   clueBank,
+  clueToText,
   completedClues,
   createProgress,
   currentWordIndex,
@@ -16,6 +17,7 @@ import {
   shuffleBank,
   solvedCount,
   submitGuess,
+  toggleDiscard,
   topmostUnsolved,
   type Direction,
   type GameProgress,
@@ -142,6 +144,21 @@ export function Player({ puzzle, mode, source, onExit }: PlayerProps) {
     resetInput();
     // Picking where to solve from is a tap, so the keyboard can open for the answer bar right away.
     if (answerBar) guessInput.current?.focus();
+  }
+
+  /**
+   * ↑ / ↓ switch the solving direction while typing, matching the arrows the ladder and answer bar
+   * already use. Tab is deliberately left alone: it's how keyboard users reach the hint, the clue
+   * toggles, and the share buttons. A no-op arrow (already solving that way) falls through to the
+   * browser's caret movement, so an accidental press never clears a half-typed guess.
+   */
+  function handleGuessKeys(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const direction: Direction = event.key === 'ArrowDown' ? 'down' : 'up';
+    if (direction === progress.direction) return;
+    event.preventDefault();
+    changeDirection(direction);
   }
 
   // Start over: fresh progress (saved over the old progress) and the puzzle's original clue order.
@@ -277,6 +294,7 @@ export function Player({ puzzle, mode, source, onExit }: PlayerProps) {
                         autoFocus
                         value={guess}
                         onChange={(event) => handleGuessChange(event.target.value)}
+                        onKeyDown={handleGuessKeys}
                         aria-label={`Rung ${rung + 1}, ${enumerationLabel(letterCounts[rung] ?? '')}, solving ${progress.direction === 'down' ? 'downwards' : 'upwards'}`}
                         placeholder={guessPlaceholder}
                         autoComplete="off"
@@ -335,11 +353,10 @@ export function Player({ puzzle, mode, source, onExit }: PlayerProps) {
                 </p>
               )}
               <Button onClick={handleHint}>{hintStage === 0 ? 'Hint: which clue?' : 'Hint: reveal word'}</Button>
-              {top !== bottom && (
-                <Button variant="ghost" onClick={() => changeDirection(otherDirection)}>
-                  Switch to solving {otherDirection === 'up' ? '↑ upwards' : '↓ downwards'}
-                </Button>
-              )}
+              {/* Still offered on the last rung: both directions target it, but the clue differs. */}
+              <Button variant="ghost" onClick={() => changeDirection(otherDirection)}>
+                Switch to solving {otherDirection === 'up' ? '↑ upwards' : '↓ downwards'}
+              </Button>
             </div>
           )}
         </Card>
@@ -382,14 +399,47 @@ export function Player({ puzzle, mode, source, onExit }: PlayerProps) {
             <ul className="flex flex-col gap-2">
               {bank.available.map((clue) => {
                 const hinted = clue.step === bank.hintedStep;
+                const discarded = bank.discarded.includes(clue.step);
+                const toggle = () => setProgress((p) => toggleDiscard(p, clue.step));
                 return (
-                  <li key={clue.step} className={`list-item ${hinted ? 'list-item-hint' : ''}`}>
+                  <li
+                    key={clue.step}
+                    onClick={(event) => {
+                      // Dragging across the clue is the player copying it, not crossing it off; the
+                      // button below handles its own clicks.
+                      if (window.getSelection()?.isCollapsed === false) return;
+                      if (event.target instanceof Element && event.target.closest('button')) return;
+                      toggle();
+                    }}
+                    className={`clue-toggle list-item ${hinted ? 'list-item-hint' : ''} ${
+                      discarded ? 'list-item-discarded' : ''
+                    }`}
+                  >
                     {hinted && (
                       <span className="mb-1 block text-xs font-semibold tracking-wide text-hint uppercase">
                         Hint: this clue
                       </span>
                     )}
-                    <ClueText display={clue} />
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="min-w-0">
+                        <ClueText display={clue} />
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-pressed={discarded}
+                        aria-label={`Cross off this clue: ${clueToText(clue)}`}
+                        // Keeps the phone keyboard open: the answer bar stays focused.
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={toggle}
+                        className="shrink-0"
+                      >
+                        {/* A marker that fills in, not an ✕: the clue stays in the list. */}
+                        <span aria-hidden="true" className="text-sm leading-none">
+                          {discarded ? '●' : '○'}
+                        </span>
+                      </Button>
+                    </div>
                   </li>
                 );
               })}
@@ -432,6 +482,7 @@ export function Player({ puzzle, mode, source, onExit }: PlayerProps) {
               id={guessId}
               value={guess}
               onChange={(event) => handleGuessChange(event.target.value)}
+              onKeyDown={handleGuessKeys}
               placeholder={guessPlaceholder}
               autoComplete="off"
               autoCapitalize="characters"

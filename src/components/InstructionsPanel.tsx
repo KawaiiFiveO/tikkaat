@@ -16,7 +16,19 @@ export function InstructionsPanel({ className = '' }: { className?: string }) {
           <strong className="text-ink">Solving ↑ upwards:</strong> every clue shows the current word as its result.
           Find the word that fills the blank.
         </li>
-        <li>Switch direction at any time with the switch button or by tapping the empty rung at the other end.</li>
+        <li>
+          Some clues read as a phrase containing both words, so the word you're looking for sits in a blank inside the
+          clue rather than after the arrow.
+        </li>
+        <li>
+          <strong className="text-ink">Cross off a clue</strong> by clicking it, to rule out the ones that don't fit
+          the step you're on. Click it again to bring it back.
+        </li>
+        <li>
+          Switch direction at any time with the switch button, by tapping the empty rung at the other end, or by
+          pressing <strong className="text-ink">↑</strong> or <strong className="text-ink">↓</strong> while
+          typing your answer.
+        </li>
         <li>
           <strong className="text-ink">Hints:</strong> the first shows which clue fits the step; the second reveals
           the word.

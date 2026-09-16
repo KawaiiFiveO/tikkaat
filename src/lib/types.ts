@@ -3,6 +3,13 @@ export const FORMAT_VERSION = 1;
 /** Placeholder in clue text for the step's from-word. */
 export const PLACEHOLDER = '{word}';
 
+/**
+ * Optional placeholder in clue text for the step's to-word, for clues that read as a phrase
+ * containing both words ("{word} {next}, 20th century actor"). When a clue uses it, the to-word
+ * is shown inline instead of after an arrow.
+ */
+export const NEXT_PLACEHOLDER = '{next}';
+
 export interface PuzzleMetadata {
   title: string;
   creatorName: string;

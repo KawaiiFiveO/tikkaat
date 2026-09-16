@@ -19,3 +19,13 @@ export function isPermutation(order: unknown, length: number): order is number[]
     order.every((s) => Number.isInteger(s) && s >= 0 && s < length)
   );
 }
+
+/** True when `steps` holds distinct integers from 0 … length-1 (any subset, in any order). */
+export function isIndexSubset(steps: unknown, length: number): steps is number[] {
+  return (
+    Array.isArray(steps) &&
+    steps.length <= length &&
+    new Set(steps).size === steps.length &&
+    steps.every((s) => Number.isInteger(s) && s >= 0 && s < length)
+  );
+}

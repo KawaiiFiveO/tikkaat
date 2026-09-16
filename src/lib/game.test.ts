@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EXAMPLE_PUZZLE as P } from './examplePuzzle';
 import {
+  activeDiscards,
   activeRung,
   applyHint,
   clueBank,
@@ -17,8 +18,10 @@ import {
   shuffleBank,
   solvedCount,
   submitGuess,
+  toggleDiscard,
   type GameProgress,
 } from './game';
+import type { Puzzle } from './types';
 
 // Ladder: HIT → HOT → DOT → DOG → COG (3 rungs, 4 clues)
 
@@ -54,12 +57,74 @@ describe('direction and clue display', () => {
 
   it('fills every placeholder in a clue', () => {
     const segments = fillClue('Change the last letter of {word} to get the Spanish word for {word}', {
-      kind: 'word',
-      text: 'COSTA',
+      word: { kind: 'word', text: 'COSTA' },
+      next: { kind: 'blank' },
     });
     expect(clueToText({ step: 0, segments, result: null })).toBe(
       'Change the last letter of COSTA to get the Spanish word for COSTA',
     );
+  });
+});
+
+// Ladder: TREES → TREE → THREE (Raddle-style clues naming both words inline)
+const INLINE: Puzzle = {
+  metadata: {
+    title: 'From TREES to THREE',
+    creatorName: '',
+    dateCreated: '2026-09-15T00:00:00.000Z',
+    aboutThisPuzzle: '',
+    completionMessage: '',
+  },
+  startWord: 'TREES',
+  endWord: 'THREE',
+  rungs: ['TREE'],
+  clues: ['Drop the S from {word} to get {next}, one of many in a forest', 'Anagram {word} to get {next}'],
+  clueBankOrder: [1, 0],
+};
+
+describe('clues that name the to-word inline', () => {
+  function texts(progress: GameProgress): string[] {
+    return clueBank(INLINE, progress).available.map(clueToText);
+  }
+
+  it('shows a blank where the answer goes when solving down, with no arrow', () => {
+    expect(texts(createProgress(INLINE))).toEqual([
+      'Anagram TREES to get ________',
+      'Drop the S from TREES to get ________, one of many in a forest',
+    ]);
+  });
+
+  it('shows the current word inline when solving up, with no arrow', () => {
+    expect(texts(setDirection(createProgress(INLINE), 'up'))).toEqual([
+      'Anagram ________ to get THREE',
+      'Drop the S from ________ to get THREE, one of many in a forest',
+    ]);
+  });
+
+  it('fills both words in and drops the arrow once the clue is used', () => {
+    const result = submitGuess(INLINE, createProgress(INLINE), 'TREE');
+    expect(result.correct).toBe(true);
+    expect(clueBank(INLINE, result.progress).used.map(clueToText)).toEqual([
+      'Drop the S from TREES to get TREE, one of many in a forest',
+      'Anagram TREE to get THREE',
+    ]);
+    expect(completedClues(INLINE).map(clueToText)).toEqual([
+      'Drop the S from TREES to get TREE, one of many in a forest',
+      'Anagram TREE to get THREE',
+    ]);
+  });
+
+  it('gives every {next} in a clue the same replacement', () => {
+    const segments = fillClue('{next} and {next} again, after {word}', {
+      word: { kind: 'word', text: 'TREES' },
+      next: { kind: 'result', text: 'TREE' },
+    });
+    expect(clueToText({ step: 0, segments, result: null })).toBe('TREE and TREE again, after TREES');
+  });
+
+  it('still appends the arrow for clues without {next}', () => {
+    const progress = setDirection(createProgress(P), 'up');
+    expect(availableTexts(progress)[0]).toBe("Change the last letter of ________ to get man's best friend → COG");
   });
 });
 
@@ -204,10 +269,88 @@ describe('hasProgress', () => {
   });
 });
 
+describe('discarding clues', () => {
+  it('crosses a clue off for the current step and restores it when clicked again', () => {
+    const progress = createProgress(P);
+    expect(clueBank(P, progress).discarded).toEqual([]);
+
+    const off = toggleDiscard(progress, 2);
+    expect(clueBank(P, off).discarded).toEqual([2]);
+    // Still offered as a clue: crossing off only changes how it's shown.
+    expect(clueBank(P, off).available.map((c) => c.step)).toEqual(clueBank(P, progress).available.map((c) => c.step));
+
+    expect(clueBank(P, toggleDiscard(off, 2)).discarded).toEqual([]);
+  });
+
+  it('keeps several crossed off at once', () => {
+    const progress = toggleDiscard(toggleDiscard(createProgress(P), 1), 3);
+    expect([...activeDiscards(progress)].sort()).toEqual([1, 3]);
+  });
+
+  it('drops them once another rung becomes active', () => {
+    const progress = toggleDiscard(createProgress(P), 2);
+    expect(activeDiscards(progress)).toEqual([2]);
+    expect(activeDiscards(solve(progress, 'down', 'HOT'))).toEqual([]);
+  });
+
+  it('drops them when the direction changes the step being solved', () => {
+    // Down targets step 0, up targets step 3: different clues, so the notes don't carry over.
+    const progress = toggleDiscard(createProgress(P), 2);
+    expect(activeDiscards(setDirection(progress, 'up'))).toEqual([]);
+  });
+
+  it('drops them on the last rung too, where both directions meet but the clue differs', () => {
+    let progress = solve(solve(createProgress(P), 'down', 'HOT'), 'down', 'DOT');
+    expect(activeRung(progress)).toBe(2);
+    progress = toggleDiscard(progress, 0);
+    expect(activeDiscards(progress)).toEqual([0]);
+    const up = setDirection(progress, 'up');
+    expect(activeRung(up)).toBe(2);
+    expect(correctStep(up)).toBe(3);
+    expect(activeDiscards(up)).toEqual([]);
+  });
+
+  it('does not cross off the clue a hint has revealed', () => {
+    const progress = applyHint(toggleDiscard(createProgress(P), 0));
+    expect(clueBank(P, progress).hintedStep).toBe(0);
+    expect(clueBank(P, progress).discarded).toEqual([]);
+  });
+
+  it('is not progress: it costs nothing and does not start the game', () => {
+    const progress = toggleDiscard(createProgress(P), 2);
+    expect(hasProgress(progress)).toBe(false);
+    expect(displayScore(progress)).toBe(0);
+  });
+
+  it('does nothing once the puzzle is complete', () => {
+    let progress = solve(solve(createProgress(P), 'down', 'HOT'), 'down', 'DOT');
+    progress = solve(progress, 'down', 'DOG');
+    expect(isComplete(progress)).toBe(true);
+    expect(toggleDiscard(progress, 0)).toEqual(progress);
+  });
+});
+
 describe('restoreProgress', () => {
   it('accepts valid saved progress', () => {
     const progress = shuffleBank(applyHint(solve(createProgress(P), 'up', 'DOG')));
     expect(restoreProgress(JSON.parse(JSON.stringify(progress)), P)).toEqual(progress);
+  });
+
+  it('restores crossed-off clues, and drops them when they are missing or invalid', () => {
+    const progress = toggleDiscard(createProgress(P), 2);
+    expect(restoreProgress(JSON.parse(JSON.stringify(progress)), P)).toEqual(progress);
+
+    // Progress saved before crossing off existed still loads, rather than being rejected.
+    const { discarded: _d, discardedFor: _f, ...legacy } = progress;
+    expect(restoreProgress(legacy, P)).not.toBeNull();
+    expect(restoreProgress(legacy, P)?.discarded).toEqual([]);
+
+    for (const bad of [{ discarded: [0, 0] }, { discarded: [9] }, { discarded: 'x' }, { discardedFor: 9 }]) {
+      const restored = restoreProgress({ ...progress, ...bad }, P);
+      expect(restored).not.toBeNull();
+      expect(restored?.discarded).toEqual([]);
+      expect(restored?.discardedFor).toBe(-1);
+    }
   });
 
   it('falls back to the puzzle clue order when the saved order is missing or invalid', () => {
